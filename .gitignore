@@ -1,0 +1,13 @@
+# --- Gradle ---
+.gradle/
+build/
+
+# --- Eclipse IDE ---
+.settings/
+bin/
+.classpath
+.project
+
+# --- Java/Mac System Files ---
+*.class
+.DS_Store
