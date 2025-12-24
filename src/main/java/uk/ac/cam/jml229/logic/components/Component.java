@@ -4,6 +4,7 @@ public abstract class Component {
   private final String name;
   protected Wire outputWire;
   protected boolean state = false;
+  protected int x, y;
 
   public Component(String name) {
     this.name = name;
@@ -25,6 +26,19 @@ public abstract class Component {
 
   public Wire getOutputWire() {
     return outputWire;
+  }
+
+  public void setPosition(int x, int y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  public int getX() {
+    return x;
+  }
+
+  public int getY() {
+    return y;
   }
 
   // Updates its own state, and triggers update in the output wire

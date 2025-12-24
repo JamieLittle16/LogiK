@@ -30,5 +30,5 @@ jar {
 }
 
 application {
-    mainClass = 'uk.ac.cam.jml229.logic.Main'
+    mainClass = 'uk.ac.cam.jml229.logic.ui.GuiMain'
 }
