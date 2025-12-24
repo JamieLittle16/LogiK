@@ -37,7 +37,7 @@ public class ComponentPalette extends JPanel {
 
   private void addLabel(String text) {
     JLabel label = new JLabel(text);
-    label.setFont(new Font("Segoe UI", Font.BOLD, 12));
+    label.setFont(new Font("SansSerif", Font.BOLD, 12));
     label.setForeground(Color.GRAY);
     label.setBorder(BorderFactory.createEmptyBorder(15, 0, 5, 0));
     label.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
@@ -45,10 +45,7 @@ public class ComponentPalette extends JPanel {
   }
 
   private void addTool(Component prototype) {
-    // Custom Rounded Button Panel
     JPanel button = new JPanel() {
-      private boolean hovered = false;
-
       @Override
       public void setBackground(Color bg) {
         super.setBackground(bg);
@@ -59,20 +56,19 @@ public class ComponentPalette extends JPanel {
       protected void paintComponent(Graphics g) {
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        // FIX: Standard AA matches renderer
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        // 1. Draw Background (Rounded)
         g2.setColor(getBackground());
         g2.fillRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 15, 15);
 
-        // 2. Draw Border
         if (getBackground().equals(Color.WHITE) || getBackground().getGreen() > 240) {
           g2.setColor(new Color(200, 200, 200));
         } else {
-          g2.setColor(new Color(100, 150, 255)); // Hover border
+          g2.setColor(new Color(100, 150, 255));
         }
         g2.drawRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 15, 15);
 
-        // 3. Draw Component Icon
         int offsetX = (getWidth() - 50) / 2;
         int offsetY = (getHeight() - 40) / 2;
 
@@ -89,7 +85,7 @@ public class ComponentPalette extends JPanel {
     button.setPreferredSize(new Dimension(100, 60));
     button.setMaximumSize(new Dimension(100, 60));
     button.setBackground(Color.WHITE);
-    button.setOpaque(false); // Important for round corners
+    button.setOpaque(false);
     button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
     button.addMouseListener(new MouseAdapter() {

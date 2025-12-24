@@ -5,6 +5,10 @@ import java.awt.*;
 
 public class GuiMain {
   public static void main(String[] args) {
+
+    System.setProperty("awt.useSystemAAFontSettings", "on");
+    System.setProperty("swing.aatext", "true");
+
     SwingUtilities.invokeLater(() -> {
       JFrame frame = new JFrame("Logic Simulator");
       frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
