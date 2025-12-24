@@ -51,8 +51,7 @@ public class Circuit {
 
   /**
    * Attempts to connect source -> dest.
-   * 
-   * @return true if successful, false if invalid (e.g. loop or input occupied)
+   * * @return true if successful, false if invalid (e.g. loop or input occupied)
    */
   public boolean addConnection(Component source, Component dest, int inputIndex) {
     if (source == dest)
@@ -69,12 +68,23 @@ public class Circuit {
 
     // Get or Create the wire
     Wire w = source.getOutputWire();
+    boolean isNewWire = false;
+
     if (w == null) {
       w = new Wire(source);
       wires.add(w);
+      isNewWire = true;
+    }
+
+    if (isNewWire) {
+      source.update();
     }
 
     w.addDestination(dest, inputIndex);
+
+    // Immediately push current signal to the destination
+    dest.setInput(inputIndex, w.getSignal());
+
     return true;
   }
 
