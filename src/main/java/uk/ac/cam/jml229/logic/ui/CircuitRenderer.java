@@ -47,7 +47,8 @@ public class CircuitRenderer {
       WireSegment selectedWire,
       Pin dragStartPin,
       Point dragCurrentPoint,
-      Rectangle selectionRect) {
+      Rectangle selectionRect,
+      Component ghostComponent) {
 
     // 1. Setup Graphics
     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -61,6 +62,18 @@ public class CircuitRenderer {
     // 3. Draw Interaction Visuals
     drawDragLine(g2, dragStartPin, dragCurrentPoint);
     drawSelectionBox(g2, selectionRect);
+
+    // 4. Draw Ghost (Placement Preview)
+    if (ghostComponent != null) {
+      // Set transparency
+      Composite originalComposite = g2.getComposite();
+      g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
+
+      drawComponentBody(g2, ghostComponent, false);
+      drawPins(g2, ghostComponent);
+
+      g2.setComposite(originalComposite); // Reset
+    }
   }
 
   // =========================================================
@@ -73,7 +86,7 @@ public class CircuitRenderer {
     g2.setColor(GRID_COLOR);
     g2.setStroke(new BasicStroke(1));
 
-    // Optimize: Only draw grid lines visible in the clip bounds
+    // Optimise: Only draw grid lines visible in the clip bounds
     for (int x = 0; x < bounds.width + bounds.x; x += GRID_SIZE) {
       g2.drawLine(x, 0, x, bounds.height + bounds.y);
     }
@@ -146,7 +159,7 @@ public class CircuitRenderer {
   // COMPONENT DRAWING
   // =========================================================
 
-  private void drawComponentBody(Graphics2D g2, Component c, boolean sel) {
+  public void drawComponentBody(Graphics2D g2, Component c, boolean sel) {
     int x = c.getX();
     int y = c.getY();
     if (c instanceof Switch)
@@ -169,7 +182,7 @@ public class CircuitRenderer {
     g2.drawString(c.getName(), x, y - 5);
   }
 
-  private void drawPins(Graphics2D g2, Component c) {
+  public void drawPins(Graphics2D g2, Component c) {
     // Output Pin
     if (!(c instanceof OutputProbe)) {
       Point out = getPinLocation(c, false, 0);

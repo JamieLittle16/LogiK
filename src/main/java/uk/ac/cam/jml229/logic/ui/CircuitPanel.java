@@ -17,13 +17,13 @@ public class CircuitPanel extends JPanel {
     setBackground(Color.WHITE);
     setFocusable(true);
 
-    // 1. Initialize Model
+    // 1. Initialise Model
     this.circuit = new Circuit();
 
-    // 2. Initialize View
+    // 2. Initialise View
     this.renderer = new CircuitRenderer();
 
-    // 3. Initialize Controller
+    // 3. Initialise Controller
     this.interaction = new CircuitInteraction(circuit, this, renderer);
 
     // 4. Wire them up
@@ -35,6 +35,14 @@ public class CircuitPanel extends JPanel {
   public void addComponent(Component c) {
     circuit.addComponent(c);
     repaint();
+  }
+
+  public CircuitInteraction getInteraction() {
+    return interaction;
+  }
+
+  public CircuitRenderer getRenderer() {
+    return renderer;
   }
 
   @Override
@@ -50,7 +58,7 @@ public class CircuitPanel extends JPanel {
         interaction.getSelectedWire(), // State from Controller
         interaction.getDragStartPin(), // State from Controller
         interaction.getDragCurrentPoint(), // State from Controller
-        interaction.getSelectionRect() // State from Controller
-    );
+        interaction.getSelectionRect(), // State from Controller
+        interaction.getComponentToPlace());
   }
 }

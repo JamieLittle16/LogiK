@@ -35,6 +35,9 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   private Pin dragStartPin = null;
   private Point dragCurrentPoint = null;
 
+  // Ghost component following the mouse
+  private Component componentToPlace = null;
+
   public CircuitInteraction(Circuit circuit, CircuitPanel panel, CircuitRenderer renderer) {
     this.circuit = circuit;
     this.panel = panel;
@@ -62,6 +65,15 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     return selectionRect;
   }
 
+  public Component getComponentToPlace() {
+    return componentToPlace;
+  }
+
+  public void startPlacing(Component c) {
+    this.componentToPlace = c;
+    panel.repaint();
+  }
+
   // --- Logic: Deletion ---
   public void deleteSelection() {
     if (selectedWireSegment != null) {
@@ -81,11 +93,45 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   }
 
   // --- Logic: Mouse Handling ---
+  @Override
+  public void mouseMoved(MouseEvent e) {
+    // 1. Handle Placing (Ghost follows mouse)
+    if (componentToPlace != null) {
+      // Snap to grid (Optional but recommended)
+      int gridX = Math.round(e.getX() / 20.0f) * 20;
+      int gridY = Math.round(e.getY() / 20.0f) * 20;
+      componentToPlace.setPosition(gridX, gridY);
+      panel.repaint();
+      return;
+    }
+
+    // 2. Standard Hover Cursor (Hand icon if over a component)
+    Component c = getLogicComponentAt(e.getPoint());
+    panel.setCursor(c != null ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+        : Cursor.getDefaultCursor());
+  }
 
   @Override
   public void mousePressed(MouseEvent e) {
     panel.requestFocusInWindow();
     lastMousePt = e.getPoint();
+
+    if (SwingUtilities.isRightMouseButton(e)) {
+      componentToPlace = null;
+      panel.repaint();
+      return;
+    }
+
+    if (componentToPlace != null) {
+      circuit.addComponent(componentToPlace);
+
+      // Prepare a fresh instance of the same type for the next click (Stamp mode)
+      // Or set to null to stop placing. Let's stop placing for now.
+      componentToPlace = null;
+
+      panel.repaint();
+      return;
+    }
 
     // 1. Check Pins (Wiring)
     Pin clickedPin = getPinAt(e.getPoint());
