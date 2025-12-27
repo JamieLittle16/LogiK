@@ -7,8 +7,12 @@ public class OutputProbe extends UnaryGate {
 
   @Override
   public void updateLogic() {
-    state = inputA;
+    state = getInputA();
     // Output to Console - for now
     System.out.println("Output [" + getName() + "]: " + (state ? "ON" : "OFF"));
+  }
+
+  public boolean getState() {
+    return getInput(0);
   }
 }

@@ -7,6 +7,6 @@ public class NotGate extends UnaryGate {
 
   @Override
   public void updateLogic() {
-    state = !inputA;
+    state = !getInputA();
   }
 }

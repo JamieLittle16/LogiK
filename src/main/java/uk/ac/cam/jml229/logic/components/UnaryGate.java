@@ -1,21 +1,25 @@
 package uk.ac.cam.jml229.logic.components;
 
-import uk.ac.cam.jml229.logic.exceptions.InvalidInputException;
-
 public abstract class UnaryGate extends Component {
-  protected boolean inputA;
+
+  protected boolean state = false;
 
   public UnaryGate(String name) {
     super(name);
+    setInputCount(1);
+  }
+
+  protected boolean getInputA() {
+    return getInput(0);
   }
 
   @Override
-  public void setInput(int inputIndex, boolean state) throws InvalidInputException {
-    // Recieves 1 input
-    if (inputIndex != 0) {
-      throw new InvalidInputException(getName(), inputIndex, 1);
+  public void update() {
+    updateLogic();
+    if (getOutputWire() != null) {
+      getOutputWire().setSignal(state);
     }
-    inputA = state;
-    update(); // Propogate signal
   }
+
+  protected abstract void updateLogic();
 }

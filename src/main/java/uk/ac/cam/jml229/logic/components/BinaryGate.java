@@ -1,25 +1,36 @@
 package uk.ac.cam.jml229.logic.components;
 
-import uk.ac.cam.jml229.logic.exceptions.InvalidInputException;
-
 public abstract class BinaryGate extends Component {
-  protected boolean inputA;
-  protected boolean inputB;
+
+  // We keep 'state' so the gate remembers its output value
+  protected boolean state = false;
 
   public BinaryGate(String name) {
     super(name);
+    setInputCount(2); // Reserve 2 inputs in the base list
   }
 
-  @Override
-  public void setInput(int pinIndex, boolean signal) throws InvalidInputException {
-    // Recieves two inputs
-    if (pinIndex == 0) {
-      inputA = signal;
-    } else if (pinIndex == 1) {
-      inputB = signal;
-    } else {
-      throw new InvalidInputException(getName(), pinIndex, 2);
-    }
-    update(); // Propogate signal
+  // --- The Bridge: Map Index to Names ---
+  protected boolean getInputA() {
+    return getInput(0);
   }
+
+  protected boolean getInputB() {
+    return getInput(1);
+  }
+
+  // --- The Loop: Component calls update() -> We call updateLogic() ---
+  @Override
+  public void update() {
+    // Let the specific gate (AND, OR) calculate the new 'state'
+    updateLogic();
+
+    // Push that state to the wire (if connected)
+    if (getOutputWire() != null) {
+      getOutputWire().setSignal(state);
+    }
+  }
+
+  // Force subclasses to define the logic
+  protected abstract void updateLogic();
 }

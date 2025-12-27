@@ -17,8 +17,10 @@ public class Circuit {
    */
   public void addComponent(Component c) {
     components.add(c);
-    if (c.getOutputWire() != null && !wires.contains(c.getOutputWire())) {
-      wires.add(c.getOutputWire());
+    for (Wire w : c.getAllOutputs()) {
+      if (!wires.contains(w)) {
+        wires.add(w);
+      }
     }
   }
 
@@ -26,52 +28,55 @@ public class Circuit {
    * Removes a component and safely cleans up all connected wires.
    */
   public void removeComponent(Component c) {
-    // 1. Remove wires driven BY this component (Outputs)
+    // Remove wires driven BY this component (All Outputs)
     List<Wire> outputWires = new ArrayList<>();
     for (Wire w : wires) {
       if (w.getSource() == c) {
         outputWires.add(w);
       }
     }
-
-    // Remove these wires from the circuit
     wires.removeAll(outputWires);
-    // (Optional: You could also set c.setOutputWire(null) here)
 
-    // 2. Remove wires driving INTO this component (Inputs)
+    // Remove wires driving INTO this component (Inputs)
     for (Wire w : wires) {
-      // We remove any connection that points to 'c'
-      // Using removeIf is safe while iterating the outer list
       w.getDestinations().removeIf(pc -> pc.component == c);
     }
 
-    // 3. Finally remove the component itself
+    // Remove component
     components.remove(c);
   }
 
   /**
-   * Attempts to connect source -> dest.
-   * * @return true if successful, false if invalid (e.g. loop or input occupied)
+   * Standard Connection (Default Source Output 0 -> Dest Input Index)
    */
   public boolean addConnection(Component source, Component dest, int inputIndex) {
-    if (source == dest)
-      return false; // Prevent self-loops
+    return addConnection(source, 0, dest, inputIndex);
+  }
 
-    // Check if this specific input pin is already occupied
+  /**
+   * Advanced Connection (Source Output Index -> Dest Input Index)
+   * Essential for Custom Components with multiple outputs.
+   */
+  public boolean addConnection(Component source, int sourceOutputIndex, Component dest, int inputIndex) {
+    if (source == dest)
+      return false;
+
+    // Check availability
     for (Wire w : wires) {
       for (Wire.PortConnection pc : w.getDestinations()) {
         if (pc.component == dest && pc.inputIndex == inputIndex) {
-          return false; // Input already has a wire!
+          return false; // Input occupied
         }
       }
     }
 
-    // Get or Create the wire
-    Wire w = source.getOutputWire();
+    // Get or Create Wire at specific index
+    Wire w = source.getOutputWire(sourceOutputIndex);
     boolean isNewWire = false;
 
     if (w == null) {
       w = new Wire(source);
+      source.setOutputWire(sourceOutputIndex, w); // Set at specific index
       wires.add(w);
       isNewWire = true;
     }
@@ -81,8 +86,6 @@ public class Circuit {
     }
 
     w.addDestination(dest, inputIndex);
-
-    // Immediately push current signal to the destination
     dest.setInput(inputIndex, w.getSignal());
 
     return true;
@@ -118,6 +121,51 @@ public class Circuit {
         return;
       }
     }
+  }
+
+  /**
+   * Creates a deep copy of this circuit.
+   * Used for Copy/Paste and for instantiating Custom Components.
+   */
+  public Circuit cloneCircuit() {
+    Circuit copy = new Circuit();
+    java.util.Map<Component, Component> oldToNew = new java.util.HashMap<>();
+
+    for (Component original : this.components) {
+      Component clone = original.makeCopy();
+      clone.setPosition(original.getX(), original.getY());
+      copy.addComponent(clone);
+      oldToNew.put(original, clone);
+    }
+
+    for (Wire originalWire : this.wires) {
+      Component oldSource = originalWire.getSource();
+      if (oldSource == null)
+        continue;
+
+      // Which output index is this wire attached to?
+      // We have to search the source's output list to find the index.
+      int sourceIndex = -1;
+      for (int i = 0; i < oldSource.getOutputCount(); i++) {
+        if (oldSource.getOutputWire(i) == originalWire) {
+          sourceIndex = i;
+          break;
+        }
+      }
+      if (sourceIndex == -1)
+        continue;
+
+      Component newSource = oldToNew.get(oldSource);
+
+      for (Wire.PortConnection pc : originalWire.getDestinations()) {
+        Component oldDest = pc.component;
+        Component newDest = oldToNew.get(oldDest);
+
+        // Use the explicit index addConnection
+        copy.addConnection(newSource, sourceIndex, newDest, pc.inputIndex);
+      }
+    }
+    return copy;
   }
 
   // --- Accessors ---

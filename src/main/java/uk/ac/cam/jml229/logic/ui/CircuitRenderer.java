@@ -17,12 +17,15 @@ public class CircuitRenderer {
   private static final Color GRID_COLOR = new Color(235, 235, 235);
   private static final Color SELECTION_BORDER = new Color(0, 180, 255);
   private static final Color SELECTION_FILL = new Color(0, 180, 255, 40);
+  private static final Color HOVER_COLOR = new Color(255, 180, 0); // Orange-Gold for hover
   private static final Color PIN_COLOR = new Color(50, 50, 50);
   private static final Color STUB_COLOR = new Color(0, 0, 0);
   private static final Color WIRE_OFF = new Color(100, 100, 100);
   private static final Color WIRE_ON = new Color(230, 50, 50);
 
   // --- Shared Types ---
+  // Record implements equals() automatically, so (pinA.equals(pinB)) works
+  // perfectly
   public record Pin(Component component, int index, boolean isInput, Point location) {
   }
 
@@ -41,31 +44,42 @@ public class CircuitRenderer {
       List<Wire> wires,
       List<Component> selectedComponents,
       WireSegment selectedWire,
-      Pin dragStartPin,
-      Point dragCurrentPoint,
+      Pin hoveredPin, // NEW ARG
+      WireSegment hoveredWire, // NEW ARG
+      Pin connectionStartPin, // Renamed from dragStartPin
+      Point currentMousePoint, // Renamed from dragCurrentPoint
       Rectangle selectionRect,
       Component ghostComponent) {
 
-    // FIX: High-Quality Rendering Settings
     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-    // Standard AA is safer than LCD for transparent backgrounds
     g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-    // Crucial for text spacing
     g2.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
     g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 
     drawGrid(g2, g2.getClipBounds());
-    drawWires(g2, wires, selectedWire);
-    drawComponents(g2, components, selectedComponents);
+    drawWires(g2, wires, selectedWire, hoveredWire);
+    drawComponents(g2, components, selectedComponents, hoveredPin, connectionStartPin);
 
-    drawDragLine(g2, dragStartPin, dragCurrentPoint);
+    // Draw the "Ghost Wire" line when wiring
+    if (connectionStartPin != null && currentMousePoint != null) {
+      g2.setColor(Color.BLACK);
+      // Dashed line
+      g2.setStroke(new BasicStroke(2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 10, new float[] { 5 }, 0));
+      g2.drawLine(connectionStartPin.location.x, connectionStartPin.location.y, currentMousePoint.x,
+          currentMousePoint.y);
+
+      // Draw a target dot at the mouse
+      g2.setColor(HOVER_COLOR);
+      g2.fillOval(currentMousePoint.x - 4, currentMousePoint.y - 4, 8, 8);
+    }
+
     drawSelectionBox(g2, selectionRect);
 
     if (ghostComponent != null) {
       Composite originalComposite = g2.getComposite();
       g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
       drawComponentBody(g2, ghostComponent, false, false);
-      drawPins(g2, ghostComponent);
+      drawPins(g2, ghostComponent, null, null); // No highlights on ghost
       g2.setComposite(originalComposite);
     }
   }
@@ -83,7 +97,7 @@ public class CircuitRenderer {
       g2.drawLine(0, y, bounds.width + bounds.x, y);
   }
 
-  private void drawWires(Graphics2D g2, List<Wire> wires, WireSegment selectedWire) {
+  private void drawWires(Graphics2D g2, List<Wire> wires, WireSegment selectedWire, WireSegment hoveredWire) {
     g2.setStroke(new BasicStroke(3, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
     for (Wire w : wires) {
       Component source = w.getSource();
@@ -94,35 +108,33 @@ public class CircuitRenderer {
       for (Wire.PortConnection pc : w.getDestinations()) {
         Component dest = pc.component;
         Point p2 = getPinLocation(dest, true, pc.inputIndex);
+
         boolean isSelected = (selectedWire != null && selectedWire.wire == w && selectedWire.connection == pc);
+        boolean isHovered = (hoveredWire != null && hoveredWire.wire == w && hoveredWire.connection == pc);
+
         CubicCurve2D.Double curve = createWireCurve(p1.x, p1.y, p2.x, p2.y);
 
-        if (isSelected) {
-          g2.setColor(SELECTION_BORDER);
-          g2.setStroke(new BasicStroke(7));
+        // Highlight (Hover or Select)
+        if (isSelected || isHovered) {
+          g2.setColor(isSelected ? SELECTION_BORDER : HOVER_COLOR);
+          g2.setStroke(new BasicStroke(6)); // Thicker
           g2.draw(curve);
-          g2.setStroke(new BasicStroke(3));
+          g2.setStroke(new BasicStroke(3)); // Reset for inner color
         }
+
         g2.setColor(w.getSignal() ? WIRE_ON : WIRE_OFF);
         g2.draw(curve);
       }
     }
   }
 
-  private void drawComponents(Graphics2D g2, List<Component> components, List<Component> selectedComponents) {
+  private void drawComponents(Graphics2D g2, List<Component> components, List<Component> selectedComponents,
+      Pin hoveredPin, Pin activePin) {
     for (Component c : components) {
       boolean isSelected = selectedComponents.contains(c);
       drawComponentStubs(g2, c);
       drawComponentBody(g2, c, isSelected, true);
-      drawPins(g2, c);
-    }
-  }
-
-  private void drawDragLine(Graphics2D g2, Pin startPin, Point currentPoint) {
-    if (startPin != null && currentPoint != null) {
-      g2.setColor(Color.BLACK);
-      g2.setStroke(new BasicStroke(2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 10, new float[] { 5 }, 0));
-      g2.drawLine(startPin.location.x, startPin.location.y, currentPoint.x, currentPoint.y);
+      drawPins(g2, c, hoveredPin, activePin);
     }
   }
 
@@ -165,7 +177,6 @@ public class CircuitRenderer {
 
     if (drawLabel) {
       g2.setColor(Color.BLACK);
-      // FIX: Using System Font (Dialog) + Plain weight for sharpness
       g2.setFont(new Font(Font.DIALOG, Font.PLAIN, 11));
       FontMetrics fm = g2.getFontMetrics();
       int tw = fm.stringWidth(c.getName());
@@ -179,22 +190,30 @@ public class CircuitRenderer {
 
     g2.setColor(STUB_COLOR);
     g2.setStroke(new BasicStroke(3));
-
     int x = c.getX();
     int y = c.getY();
 
-    // Output Stub
+    // Output Stubs (Loop through all outputs)
+    int outCount = c.getOutputCount();
     boolean hasBubbleOutput = (c instanceof NandGate || c instanceof NorGate);
 
-    if (!hasBubbleOutput) {
-      if (c instanceof Switch) {
-        g2.drawLine(x + 40, y + 20, x + 60, y + 20);
+    for (int i = 0; i < outCount; i++) {
+      // If we have just 1 output, use standard positioning logic
+      // If we have >1, we just draw standard stubs at pin locations
+      if (outCount == 1) {
+        if (!hasBubbleOutput) {
+          if (c instanceof Switch)
+            g2.drawLine(x + 40, y + 20, x + 60, y + 20);
+          else
+            g2.drawLine(x + 50, y + 20, x + 60, y + 20);
+        } else {
+          g2.drawLine(x + 55, y + 20, x + 60, y + 20);
+        }
       } else {
-        g2.drawLine(x + 50, y + 20, x + 60, y + 20);
+        // Multiple outputs - simple horizontal lines from body edge (50) to pin (60)
+        Point p = getPinLocation(c, false, i);
+        g2.drawLine(x + 50, p.y, p.x, p.y);
       }
-    } else {
-      // For Bubble gates, draw the tiny stem after the bubble (55 to 60)
-      g2.drawLine(x + 55, y + 20, x + 60, y + 20);
     }
 
     // Input Stubs
@@ -208,24 +227,45 @@ public class CircuitRenderer {
     }
   }
 
-  public void drawPins(Graphics2D g2, Component c) {
+  public void drawPins(Graphics2D g2, Component c, Pin hoveredPin, Pin activePin) {
     if (!(c instanceof OutputProbe)) {
-      Point out = getPinLocation(c, false, 0);
-      drawPinCircle(g2, out);
+      // Loop outputs
+      int count = c.getOutputCount();
+      for (int i = 0; i < count; i++) {
+        Point out = getPinLocation(c, false, i);
+        Pin myPin = new Pin(c, i, false, out);
+        drawPinCircle(g2, myPin, hoveredPin, activePin);
+      }
     }
     int count = getInputCount(c);
     for (int i = 0; i < count; i++) {
       Point in = getPinLocation(c, true, i);
-      drawPinCircle(g2, in);
+      Pin myPin = new Pin(c, i, true, in);
+      drawPinCircle(g2, myPin, hoveredPin, activePin);
     }
   }
 
-  private void drawPinCircle(Graphics2D g2, Point p) {
+  private void drawPinCircle(Graphics2D g2, Pin myPin, Pin hoveredPin, Pin activePin) {
+    boolean isHovered = (hoveredPin != null && hoveredPin.equals(myPin));
+    boolean isActive = (activePin != null && activePin.equals(myPin));
+
+    Point p = myPin.location;
+
+    if (isActive) {
+      // Started wiring from here
+      g2.setColor(SELECTION_BORDER);
+      g2.fillOval(p.x - 6, p.y - 6, 12, 12);
+    } else if (isHovered) {
+      // Hovering over this pin
+      g2.setColor(HOVER_COLOR);
+      g2.drawOval(p.x - 6, p.y - 6, 12, 12);
+    }
+
     g2.setColor(PIN_COLOR);
     g2.fillOval(p.x - PIN_SIZE / 2, p.y - PIN_SIZE / 2, PIN_SIZE, PIN_SIZE);
   }
 
-  // --- Shapes (These were missing!) ---
+  // --- Shapes (Existing code mostly unchanged below here) ---
 
   private void drawSwitch(Graphics2D g2, Switch s, int x, int y, boolean sel) {
     if (sel) {
@@ -235,11 +275,9 @@ public class CircuitRenderer {
     }
     g2.setColor(Color.DARK_GRAY);
     g2.fillRoundRect(x, y + 5, 40, 30, 30, 30);
-
     boolean on = s.getOutputWire() != null && s.getOutputWire().getSignal();
     int circleX = on ? x + 22 : x + 2;
     Color c = on ? new Color(100, 255, 100) : new Color(200, 200, 200);
-
     g2.setColor(c);
     g2.fillOval(circleX, y + 7, 26, 26);
     g2.setColor(Color.BLACK);
@@ -285,8 +323,6 @@ public class CircuitRenderer {
     g2.drawRect(x, y, 50, 40);
   }
 
-  // --- Basic Gates ---
-
   private void drawAndGate(Graphics2D g2, Component c, int x, int y, boolean sel) {
     Path2D p = new Path2D.Double();
     p.moveTo(x, y);
@@ -321,8 +357,6 @@ public class CircuitRenderer {
     g2.draw(b);
     drawOrGate(g2, c, x + 5, y, sel);
   }
-
-  // --- Advanced Gates ---
 
   private void drawBufferGate(Graphics2D g2, Component c, int x, int y, boolean sel) {
     Path2D p = new Path2D.Double();
@@ -377,16 +411,18 @@ public class CircuitRenderer {
 
   public CubicCurve2D.Double createWireCurve(int x1, int y1, int x2, int y2) {
     CubicCurve2D.Double curve = new CubicCurve2D.Double();
-    double ctrlDist = Math.abs(x2 - x1) * 0.5;
-    if (ctrlDist < 20)
-      ctrlDist = 20;
+    double ctrlDist = Math.max(20, Math.abs(x2 - x1) * 0.5);
     curve.setCurve(x1, y1, x1 + ctrlDist, y1, x2 - ctrlDist, y2, x2, y2);
     return curve;
   }
 
   public Point getPinLocation(Component c, boolean isInput, int index) {
     if (!isInput) {
-      return new Point(c.getX() + 60, c.getY() + 20);
+      int outCount = c.getOutputCount();
+      if (outCount <= 1)
+        return new Point(c.getX() + 60, c.getY() + 20);
+      else
+        return new Point(c.getX() + 60, c.getY() + 10 + (index * 20));
     } else {
       int count = getInputCount(c);
       if (count == 1)

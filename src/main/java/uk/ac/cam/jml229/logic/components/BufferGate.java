@@ -7,6 +7,6 @@ public class BufferGate extends UnaryGate {
 
   @Override
   public void updateLogic() {
-    state = inputA;
+    state = getInputA();
   }
 }

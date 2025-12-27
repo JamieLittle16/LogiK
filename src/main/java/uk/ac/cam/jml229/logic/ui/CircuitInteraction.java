@@ -23,20 +23,22 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   private final List<Component> selectedComponents = new ArrayList<>();
   private WireSegment selectedWireSegment = null;
 
-  // Dragging
-  private Point lastMousePt;
-  private boolean isDraggingItems = false;
-  private boolean isMouseInsidePanel = false;
+  // Hover State (Visual Feedback)
+  private Pin hoveredPin = null;
+  private WireSegment hoveredWire = null;
+
+  // Wiring State (Click-Click)
+  private Pin connectionStartPin = null; // Replaces dragStartPin
+  private Point currentMousePoint = null; // For ghost wire and ghost component
 
   // Selection Box
   private Rectangle selectionRect;
   private Point selectionStartPt;
+  private Point lastMousePt;
+  private boolean isDraggingItems = false;
+  private boolean isMouseInsidePanel = false;
 
-  // Wiring
-  private Pin dragStartPin = null;
-  private Point dragCurrentPoint = null;
-
-  // Ghost component following the mouse
+  // Ghost component (Placing new gate)
   private Component componentToPlace = null;
 
   public CircuitInteraction(Circuit circuit, CircuitPanel panel, CircuitRenderer renderer) {
@@ -54,30 +56,37 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     return selectedWireSegment;
   }
 
-  public Pin getDragStartPin() {
-    return dragStartPin;
+  public Pin getHoveredPin() {
+    return hoveredPin;
   }
 
-  public Point getDragCurrentPoint() {
-    return dragCurrentPoint;
+  public WireSegment getHoveredWire() {
+    return hoveredWire;
+  }
+
+  public Pin getConnectionStartPin() {
+    return connectionStartPin;
+  } // Renamed from dragStartPin
+
+  public Point getCurrentMousePoint() {
+    return currentMousePoint;
   }
 
   public Rectangle getSelectionRect() {
     return selectionRect;
   }
 
-  // NEW: Only return the ghost component if the mouse is actually inside the
-  // panel
   public Component getComponentToPlace() {
     return isMouseInsidePanel ? componentToPlace : null;
   }
 
   public void startPlacing(Component c) {
     this.componentToPlace = c;
+    // Cancel any active wiring if we pick up a tool
+    this.connectionStartPin = null;
     panel.repaint();
   }
 
-  // --- Logic: Deletion ---
   public void deleteSelection() {
     if (selectedWireSegment != null) {
       circuit.removeConnection(
@@ -85,7 +94,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
           selectedWireSegment.connection.inputIndex);
       selectedWireSegment = null;
     }
-
     if (!selectedComponents.isEmpty()) {
       for (Component c : new ArrayList<>(selectedComponents)) {
         circuit.removeComponent(c);
@@ -95,7 +103,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     panel.repaint();
   }
 
-  // --- Logic: Mouse Handling ---
+  // --- Mouse Handling ---
 
   @Override
   public void mouseEntered(MouseEvent e) {
@@ -110,16 +118,60 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   }
 
   @Override
-  public void mousePressed(MouseEvent e) {
-    panel.requestFocusInWindow();
-    lastMousePt = e.getPoint();
+  public void mouseMoved(MouseEvent e) {
+    currentMousePoint = e.getPoint();
 
-    if (SwingUtilities.isRightMouseButton(e)) {
-      componentToPlace = null;
+    // 1. Update Ghost Component (if placing)
+    if (componentToPlace != null) {
+      int gridX = Math.round(e.getX() / 20.0f) * 20;
+      int gridY = Math.round(e.getY() / 20.0f) * 20;
+      componentToPlace.setPosition(gridX, gridY);
       panel.repaint();
       return;
     }
 
+    // 2. Update Hover State (Highlight pins/wires)
+    Pin prevPin = hoveredPin;
+    WireSegment prevWire = hoveredWire;
+
+    hoveredPin = getPinAt(e.getPoint());
+    // Only check wire if pin is null (Pin takes priority)
+    hoveredWire = (hoveredPin == null) ? getWireAt(e.getPoint()) : null;
+
+    // Change cursor logic
+    if (hoveredPin != null || hoveredWire != null) {
+      panel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+    } else {
+      Component c = getLogicComponentAt(e.getPoint());
+      panel.setCursor(c != null ? Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR)
+          : Cursor.getDefaultCursor());
+    }
+
+    // Repaint only if state changed or we are drawing a wire line
+    if (connectionStartPin != null || !objEquals(prevPin, hoveredPin) || !objEquals(prevWire, hoveredWire)) {
+      panel.repaint();
+    }
+  }
+
+  private boolean objEquals(Object a, Object b) {
+    return (a == null && b == null) || (a != null && a.equals(b));
+  }
+
+  @Override
+  public void mousePressed(MouseEvent e) {
+    panel.requestFocusInWindow();
+    lastMousePt = e.getPoint();
+    currentMousePoint = e.getPoint();
+
+    // Right Click cancels everything
+    if (SwingUtilities.isRightMouseButton(e)) {
+      componentToPlace = null;
+      connectionStartPin = null;
+      panel.repaint();
+      return;
+    }
+
+    // 1. Handle Component Placement
     if (componentToPlace != null) {
       circuit.addComponent(componentToPlace);
       componentToPlace = null;
@@ -127,15 +179,36 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       return;
     }
 
+    // 2. Handle Wiring (The "Click-Click" Logic)
     Pin clickedPin = getPinAt(e.getPoint());
-    if (clickedPin != null && !clickedPin.isInput()) {
-      dragStartPin = clickedPin;
-      dragCurrentPoint = e.getPoint();
-      selectedWireSegment = null;
+
+    // Case A: We are already wiring (have a start pin)
+    if (connectionStartPin != null) {
+      if (clickedPin != null && clickedPin.isInput()) {
+        // Success: Connect Output to Input
+        circuit.addConnection(connectionStartPin.component(), clickedPin.component(), clickedPin.index());
+        connectionStartPin = null; // Done
+      } else {
+        // Clicked anywhere else (or an output pin) -> Cancel Wiring
+        connectionStartPin = null;
+      }
       panel.repaint();
       return;
     }
 
+    // Case B: Not wiring yet. Did we click a pin?
+    if (clickedPin != null) {
+      if (!clickedPin.isInput()) {
+        // Start wiring from Output Pin
+        connectionStartPin = clickedPin;
+        selectedComponents.clear();
+        selectedWireSegment = null;
+      }
+      panel.repaint();
+      return; // Don't do selection logic if we clicked a pin
+    }
+
+    // 3. Selection Logic (Wires & Components)
     WireSegment clickedWire = getWireAt(e.getPoint());
     if (clickedWire != null) {
       selectedWireSegment = clickedWire;
@@ -156,28 +229,15 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   }
 
   @Override
-  public void mouseMoved(MouseEvent e) {
-    if (componentToPlace != null) {
-      int gridX = Math.round(e.getX() / 20.0f) * 20;
-      int gridY = Math.round(e.getY() / 20.0f) * 20;
-      componentToPlace.setPosition(gridX, gridY);
-      panel.repaint();
-      return;
-    }
-
-    Component c = getLogicComponentAt(e.getPoint());
-    panel.setCursor(c != null ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
-        : Cursor.getDefaultCursor());
-  }
-
-  @Override
   public void mouseDragged(MouseEvent e) {
-    if (dragStartPin != null) {
-      dragCurrentPoint = e.getPoint();
+    // If we are placing a wire, we treat drag like move (update ghost line)
+    if (connectionStartPin != null) {
+      currentMousePoint = e.getPoint();
       panel.repaint();
       return;
     }
 
+    // Standard Dragging
     if (isDraggingItems) {
       int dx = e.getX() - lastMousePt.x;
       int dy = e.getY() - lastMousePt.y;
@@ -197,17 +257,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   @Override
   public void mouseReleased(MouseEvent e) {
-    if (dragStartPin != null) {
-      Pin endPin = getPinAt(e.getPoint());
-      if (endPin != null && endPin.isInput()) {
-        circuit.addConnection(dragStartPin.component(), endPin.component(), endPin.index());
-      }
-      dragStartPin = null;
-      dragCurrentPoint = null;
-      panel.repaint();
-      return;
-    }
-
     if (selectionRect != null) {
       finalizeSelectionBox();
     }
@@ -217,7 +266,8 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   @Override
   public void mouseClicked(MouseEvent e) {
-    if (dragStartPin == null && !isDraggingItems && componentToPlace == null) {
+    // Toggle switches (only if not wiring)
+    if (connectionStartPin == null && !isDraggingItems && componentToPlace == null) {
       Component c = getLogicComponentAt(e.getPoint());
       if (c instanceof Switch) {
         ((Switch) c).toggle(!((Switch) c).getState());
@@ -226,11 +276,17 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     }
   }
 
-  // --- Logic: Keyboard Handling ---
+  // --- Key Listener ---
   @Override
   public void keyPressed(KeyEvent e) {
     if (e.getKeyCode() == KeyEvent.VK_DELETE || e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
       deleteSelection();
+    }
+    if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+      // Cancel current action
+      connectionStartPin = null;
+      componentToPlace = null;
+      panel.repaint();
     }
   }
 
@@ -242,8 +298,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   public void keyReleased(KeyEvent e) {
   }
 
-  // --- Helpers ---
-
+  // --- Helpers (Same as before) ---
   private void handleComponentSelection(MouseEvent e, Component clickedComp) {
     if (e.isShiftDown()) {
       if (selectedComponents.contains(clickedComp))
@@ -285,7 +340,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   }
 
   // --- Hit Testing ---
-
   private Pin getPinAt(Point p) {
     int threshold = CircuitRenderer.PIN_SIZE + 4;
     for (Component c : circuit.getComponents()) {
@@ -314,7 +368,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       for (Wire.PortConnection pc : w.getDestinations()) {
         Point p2 = renderer.getPinLocation(pc.component, true, pc.inputIndex);
         CubicCurve2D.Double curve = renderer.createWireCurve(p1.x, p1.y, p2.x, p2.y);
-
         Shape strokedShape = new BasicStroke(hitThreshold).createStrokedShape(curve);
         if (strokedShape.contains(p))
           return new WireSegment(w, pc);

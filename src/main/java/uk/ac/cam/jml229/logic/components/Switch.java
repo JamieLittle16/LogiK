@@ -2,23 +2,35 @@ package uk.ac.cam.jml229.logic.components;
 
 public class Switch extends Component {
 
+  private boolean state = false; // Internal state (ON/OFF)
+
   public Switch(String name) {
     super(name);
+    setInputCount(0); // Switches have 0 inputs
   }
 
-  public void toggle(boolean isOn) {
-    state = isOn;
-    update(); // Propagate signal
-  }
-
+  /**
+   * Called by Circuit when a wire is attached.
+   * Pushes the current state to the output.
+   */
   @Override
-  public void updateLogic() {
-    // No logic needed - state ste manually with toggle()
+  public void update() {
+    if (getOutputWire() != null) {
+      getOutputWire().setSignal(state);
+    }
   }
 
-  @Override
-  public void setInput(int inputIndex, boolean state) {
-    // Switches don't accept inputs from other wires
-    throw new UnsupportedOperationException("Switches do not accept inputs.");
+  /**
+   * Toggles the switch state and triggers an update.
+   */
+  public void toggle(boolean newState) {
+    if (this.state != newState) {
+      this.state = newState;
+      update(); // Push the new state immediately
+    }
+  }
+
+  public boolean getState() {
+    return state;
   }
 }

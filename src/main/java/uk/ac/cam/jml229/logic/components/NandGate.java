@@ -7,6 +7,6 @@ public class NandGate extends BinaryGate {
 
   @Override
   public void updateLogic() {
-    state = !(inputA && inputB);
+    state = !(getInputA() && getInputB());
   }
 }
