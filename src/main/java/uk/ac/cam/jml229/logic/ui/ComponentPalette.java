@@ -8,11 +8,13 @@ import java.awt.geom.AffineTransform;
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
 
-public class ComponentPalette extends JPanel {
+// Implement Scrollable to force the panel to track the Viewport width exactly
+public class ComponentPalette extends JPanel implements Scrollable {
 
   private final CircuitInteraction interaction;
   private final CircuitRenderer renderer;
-  private boolean hasCustomHeading = false; // Track if we've added the header
+  private boolean hasCustomHeading = false;
+  private JPanel currentSection;
 
   public ComponentPalette(CircuitInteraction interaction, CircuitRenderer renderer) {
     this.interaction = interaction;
@@ -38,26 +40,36 @@ public class ComponentPalette extends JPanel {
   }
 
   private void addLabel(String text) {
+    if (getComponentCount() > 0) {
+      add(Box.createRigidArea(new Dimension(0, 15)));
+    }
+
     JLabel label = new JLabel(text);
     label.setFont(new Font("SansSerif", Font.BOLD, 12));
     label.setForeground(Color.GRAY);
-    label.setBorder(BorderFactory.createEmptyBorder(15, 0, 5, 0));
-    label.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
-    add(label);
+    // Keep headers left-aligned for visual structure
+    label.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+
+    // Add a wrapper to provide left-padding for the label
+    JPanel labelPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+    labelPanel.setOpaque(false);
+    labelPanel.add(label);
+    labelPanel.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
+    labelPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+
+    add(labelPanel);
+    add(Box.createRigidArea(new Dimension(0, 5)));
+
+    currentSection = new SectionPanel();
+    add(currentSection);
   }
 
-  /**
-   * Adds a newly created Custom Component to the sidebar.
-   */
   public void addCustomTool(Component prototype) {
-    // Add "Custom IC" heading if it's the first one
     if (!hasCustomHeading) {
       addLabel("Custom IC");
       hasCustomHeading = true;
     }
-
     addTool(prototype);
-
     revalidate();
     repaint();
   }
@@ -76,7 +88,6 @@ public class ComponentPalette extends JPanel {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        // Draw Button Background
         g2.setColor(getBackground());
         g2.fillRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 15, 15);
 
@@ -87,15 +98,12 @@ public class ComponentPalette extends JPanel {
         }
         g2.drawRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 15, 15);
 
-        // --- PREVIEW SCALING LOGIC ---
-        // Calculate the real size of the component
         int inputs = prototype.getInputCount();
         int outputs = prototype.getOutputCount();
         int maxPins = Math.max(inputs, outputs);
-        int realHeight = Math.max(40, maxPins * 20); // Matches Renderer logic
-        int realWidth = 50; // Standard width
+        int realHeight = Math.max(40, maxPins * 20);
+        int realWidth = 50;
 
-        // Calculate Scale Factor to fit inside button (with 10px padding)
         double availableH = getHeight() - 20;
         double availableW = getWidth() - 20;
 
@@ -104,17 +112,12 @@ public class ComponentPalette extends JPanel {
           scale = Math.min(availableH / realHeight, availableW / realWidth);
         }
 
-        // Apply Scale and Center
         AffineTransform oldTx = g2.getTransform();
-
-        g2.translate(getWidth() / 2, getHeight() / 2); // Move 0,0 to center
-        g2.scale(scale, scale); // Scale
-        g2.translate(-realWidth / 2 - prototype.getX(), -realHeight / 2 - prototype.getY()); // Center component
-
-        // Draw
+        g2.translate(getWidth() / 2, getHeight() / 2);
+        g2.scale(scale, scale);
+        g2.translate(-realWidth / 2 - prototype.getX(), -realHeight / 2 - prototype.getY());
         renderer.drawComponentBody(g2, prototype, false, false);
-
-        g2.setTransform(oldTx); // Restore
+        g2.setTransform(oldTx);
       }
     };
 
@@ -142,9 +145,10 @@ public class ComponentPalette extends JPanel {
       }
     });
 
-    button.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
-    add(button);
-    add(Box.createRigidArea(new Dimension(0, 8)));
+    if (currentSection != null)
+      currentSection.add(button);
+    else
+      add(button);
   }
 
   private Component createNewInstance(Component prototype) {
@@ -166,12 +170,79 @@ public class ComponentPalette extends JPanel {
       return new NorGate("NOR");
     if (prototype instanceof BufferGate)
       return new BufferGate("BUF");
-
-    // Generic fallback for Custom Components
-    if (prototype instanceof CustomComponent) {
+    if (prototype instanceof CustomComponent)
       return prototype.makeCopy();
+    return null;
+  }
+
+  // --- Scrollable Implementation ---
+  @Override
+  public Dimension getPreferredScrollableViewportSize() {
+    return getPreferredSize();
+  }
+
+  @Override
+  public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) {
+    return 20;
+  }
+
+  @Override
+  public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction) {
+    return 100;
+  }
+
+  @Override
+  public boolean getScrollableTracksViewportWidth() {
+    return true;
+  }
+
+  @Override
+  public boolean getScrollableTracksViewportHeight() {
+    return false;
+  }
+
+  // --- Resizing Section Panel ---
+  private class SectionPanel extends JPanel {
+
+    public SectionPanel() {
+      // Changed to CENTER alignment to center items in available space
+      super(new FlowLayout(FlowLayout.CENTER, 5, 5));
+      setOpaque(false);
+      setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
     }
 
-    return null;
+    @Override
+    public Dimension getPreferredSize() {
+      // Calculate width based on PARENT (ComponentPalette) if possible.
+      int width = (getParent() != null) ? getParent().getWidth() : getWidth();
+      if (width <= 0)
+        width = 130;
+
+      Insets insets = getInsets();
+      int availableWidth = width - insets.left - insets.right;
+
+      int n = getComponentCount();
+      if (n == 0)
+        return new Dimension(width, 0);
+
+      int itemW = 100;
+      int itemH = 60;
+      int hGap = 5;
+      int vGap = 5;
+
+      int cols = (availableWidth + hGap) / (itemW + hGap);
+      if (cols < 1)
+        cols = 1;
+
+      int rows = (n + cols - 1) / cols;
+      int height = rows * (itemH + vGap) + vGap + insets.top + insets.bottom;
+
+      return new Dimension(width, height);
+    }
+
+    @Override
+    public Dimension getMaximumSize() {
+      return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
+    }
   }
 }

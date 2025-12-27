@@ -22,7 +22,7 @@ public class GuiMain {
     System.setProperty("swing.aatext", "true");
 
     SwingUtilities.invokeLater(() -> {
-      JFrame frame = new JFrame("Logic Simulator");
+      JFrame frame = new JFrame("LogiK");
       frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
       // --- Setup Components ---
