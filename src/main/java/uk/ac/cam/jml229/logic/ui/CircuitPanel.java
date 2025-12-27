@@ -2,7 +2,7 @@ package uk.ac.cam.jml229.logic.ui;
 
 import javax.swing.*;
 import java.awt.*;
-import uk.ac.cam.jml229.logic.components.Component;
+import java.awt.geom.AffineTransform;
 import uk.ac.cam.jml229.logic.model.Circuit;
 
 public class CircuitPanel extends JPanel {
@@ -11,27 +11,22 @@ public class CircuitPanel extends JPanel {
   private final CircuitRenderer renderer;
   private final CircuitInteraction interaction;
 
+  private int panX = 0;
+  private int panY = 0;
+
   public CircuitPanel() {
-    setPreferredSize(new Dimension(800, 600));
-    setBackground(Color.WHITE);
-    setFocusable(true);
-
-    // 1. Initialize Model
     this.circuit = new Circuit();
-
-    // 2. Initialize View
     this.renderer = new CircuitRenderer();
-
-    // 3. Initialize Controller
     this.interaction = new CircuitInteraction(circuit, this, renderer);
 
-    // 4. Wire them up
     addMouseListener(interaction);
     addMouseMotionListener(interaction);
     addKeyListener(interaction);
+
+    setFocusable(true);
+    setBackground(Color.WHITE);
   }
 
-  // Accessors for GuiMain
   public CircuitInteraction getInteraction() {
     return interaction;
   }
@@ -40,34 +35,45 @@ public class CircuitPanel extends JPanel {
     return renderer;
   }
 
-  public void addComponent(Component c) {
-    circuit.addComponent(c);
+  public int getPanX() {
+    return panX;
+  }
+
+  public int getPanY() {
+    return panY;
+  }
+
+  public void setPan(int x, int y) {
+    this.panX = x;
+    this.panY = y;
     repaint();
   }
 
   @Override
   protected void paintComponent(Graphics g) {
     super.paintComponent(g);
+    Graphics2D g2 = (Graphics2D) g;
 
-    // Pass the updated list of arguments to the renderer
-    renderer.render(
-        (Graphics2D) g,
+    AffineTransform oldTransform = g2.getTransform();
+    g2.translate(panX, panY);
+
+    Rectangle visibleWorldBounds = new Rectangle(-panX, -panY, getWidth(), getHeight());
+
+    renderer.render(g2,
         circuit.getComponents(),
         circuit.getWires(),
         interaction.getSelectedComponents(),
         interaction.getSelectedWire(),
-
-        // Hover State
         interaction.getSelectedWaypoint(),
         interaction.getHoveredPin(),
         interaction.getHoveredWire(),
         interaction.getHoveredWaypoint(),
-
-        // Wiring State
         interaction.getConnectionStartPin(),
         interaction.getCurrentMousePoint(),
-
         interaction.getSelectionRect(),
-        interaction.getComponentToPlace());
+        interaction.getComponentToPlace(),
+        visibleWorldBounds);
+
+    g2.setTransform(oldTransform);
   }
 }
