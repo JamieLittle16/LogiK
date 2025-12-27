@@ -4,6 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.*;
 import java.util.List;
+import java.util.ArrayList;
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.model.Circuit;
@@ -170,16 +171,27 @@ public class CircuitRenderer {
     GeneralPath path = new GeneralPath();
     path.moveTo(start.x, start.y);
 
-    if (waypoints.isEmpty()) {
-      // Default Curve behavior if no waypoints
-      double ctrlDist = Math.max(20, Math.abs(end.x - start.x) * 0.5);
-      path.curveTo(start.x + ctrlDist, start.y, end.x - ctrlDist, end.y, end.x, end.y);
-    } else {
-      // Linear segments through waypoints
-      for (Point p : waypoints) {
-        path.lineTo(p.x, p.y);
-      }
-      path.lineTo(end.x, end.y);
+    // Combine all points into one sequence: Start -> W1 -> W2... -> End
+    List<Point> allPoints = new ArrayList<>();
+    allPoints.add(start);
+    allPoints.addAll(waypoints);
+    allPoints.add(end);
+
+    for (int i = 0; i < allPoints.size() - 1; i++) {
+      Point p1 = allPoints.get(i);
+      Point p2 = allPoints.get(i + 1);
+
+      // Bezier Logic:
+      // Distance for control points depends on X distance.
+      // If X aligns (dx=0), dist=0, so Handles match Points -> Straight Line.
+      double dist = Math.abs(p2.x - p1.x) * 0.5;
+
+      double cx1 = p1.x + dist;
+      double cy1 = p1.y;
+      double cx2 = p2.x - dist;
+      double cy2 = p2.y;
+
+      path.curveTo(cx1, cy1, cx2, cy2, p2.x, p2.y);
     }
     return path;
   }
