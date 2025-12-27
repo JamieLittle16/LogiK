@@ -18,15 +18,12 @@ public class CircuitRenderer {
   private static final Color GRID_COLOR = new Color(235, 235, 235);
   private static final Color SELECTION_BORDER = new Color(0, 180, 255);
   private static final Color SELECTION_FILL = new Color(0, 180, 255, 40);
-  private static final Color HOVER_COLOR = new Color(255, 180, 0); // Orange-Gold for hover
+  private static final Color HOVER_COLOR = new Color(255, 180, 0);
   private static final Color PIN_COLOR = new Color(50, 50, 50);
   private static final Color STUB_COLOR = new Color(0, 0, 0);
   private static final Color WIRE_OFF = new Color(100, 100, 100);
   private static final Color WIRE_ON = new Color(230, 50, 50);
 
-  // --- Shared Types ---
-  // Record implements equals() automatically, so (pinA.equals(pinB)) works
-  // perfectly
   public record Pin(Component component, int index, boolean isInput, Point location) {
   }
 
@@ -45,10 +42,10 @@ public class CircuitRenderer {
       List<Wire> wires,
       List<Component> selectedComponents,
       WireSegment selectedWire,
-      Pin hoveredPin, // NEW ARG
-      WireSegment hoveredWire, // NEW ARG
-      Pin connectionStartPin, // Renamed from dragStartPin
-      Point currentMousePoint, // Renamed from dragCurrentPoint
+      Pin hoveredPin,
+      WireSegment hoveredWire,
+      Pin connectionStartPin,
+      Point currentMousePoint,
       Rectangle selectionRect,
       Component ghostComponent) {
 
@@ -61,15 +58,11 @@ public class CircuitRenderer {
     drawWires(g2, wires, selectedWire, hoveredWire);
     drawComponents(g2, components, selectedComponents, hoveredPin, connectionStartPin);
 
-    // Draw the "Ghost Wire" line when wiring
     if (connectionStartPin != null && currentMousePoint != null) {
       g2.setColor(Color.BLACK);
-      // Dashed line
       g2.setStroke(new BasicStroke(2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 10, new float[] { 5 }, 0));
       g2.drawLine(connectionStartPin.location.x, connectionStartPin.location.y, currentMousePoint.x,
           currentMousePoint.y);
-
-      // Draw a target dot at the mouse
       g2.setColor(HOVER_COLOR);
       g2.fillOval(currentMousePoint.x - 4, currentMousePoint.y - 4, 8, 8);
     }
@@ -80,7 +73,7 @@ public class CircuitRenderer {
       Composite originalComposite = g2.getComposite();
       g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
       drawComponentBody(g2, ghostComponent, false, false);
-      drawPins(g2, ghostComponent, null, null); // No highlights on ghost
+      drawPins(g2, ghostComponent, null, null);
       g2.setComposite(originalComposite);
     }
   }
@@ -104,7 +97,18 @@ public class CircuitRenderer {
       Component source = w.getSource();
       if (source == null)
         continue;
-      Point p1 = getPinLocation(source, false, 0);
+
+      // Find which output index this wire is connected to
+      int sourceIndex = 0;
+      for (int i = 0; i < source.getOutputCount(); i++) {
+        if (source.getOutputWire(i) == w) {
+          sourceIndex = i;
+          break;
+        }
+      }
+
+      // Use the correct index (sourceIndex)
+      Point p1 = getPinLocation(source, false, sourceIndex);
 
       for (Wire.PortConnection pc : w.getDestinations()) {
         Component dest = pc.component;
@@ -115,12 +119,11 @@ public class CircuitRenderer {
 
         CubicCurve2D.Double curve = createWireCurve(p1.x, p1.y, p2.x, p2.y);
 
-        // Highlight (Hover or Select)
         if (isSelected || isHovered) {
           g2.setColor(isSelected ? SELECTION_BORDER : HOVER_COLOR);
-          g2.setStroke(new BasicStroke(6)); // Thicker
+          g2.setStroke(new BasicStroke(6));
           g2.draw(curve);
-          g2.setStroke(new BasicStroke(3)); // Reset for inner color
+          g2.setStroke(new BasicStroke(3));
         }
 
         g2.setColor(w.getSignal() ? WIRE_ON : WIRE_OFF);
@@ -194,13 +197,10 @@ public class CircuitRenderer {
     int x = c.getX();
     int y = c.getY();
 
-    // Output Stubs (Loop through all outputs)
     int outCount = c.getOutputCount();
     boolean hasBubbleOutput = (c instanceof NandGate || c instanceof NorGate);
 
     for (int i = 0; i < outCount; i++) {
-      // If we have just 1 output, use standard positioning logic
-      // If we have >1, we just draw standard stubs at pin locations
       if (outCount == 1) {
         if (!hasBubbleOutput) {
           if (c instanceof Switch)
@@ -211,13 +211,11 @@ public class CircuitRenderer {
           g2.drawLine(x + 55, y + 20, x + 60, y + 20);
         }
       } else {
-        // Multiple outputs - simple horizontal lines from body edge (50) to pin (60)
         Point p = getPinLocation(c, false, i);
         g2.drawLine(x + 50, p.y, p.x, p.y);
       }
     }
 
-    // Input Stubs
     int inputCount = getInputCount(c);
     for (int i = 0; i < inputCount; i++) {
       Point p = getPinLocation(c, true, i);
@@ -230,7 +228,6 @@ public class CircuitRenderer {
 
   public void drawPins(Graphics2D g2, Component c, Pin hoveredPin, Pin activePin) {
     if (!(c instanceof OutputProbe)) {
-      // Loop outputs
       int count = c.getOutputCount();
       for (int i = 0; i < count; i++) {
         Point out = getPinLocation(c, false, i);
@@ -253,11 +250,9 @@ public class CircuitRenderer {
     Point p = myPin.location;
 
     if (isActive) {
-      // Started wiring from here
       g2.setColor(SELECTION_BORDER);
       g2.fillOval(p.x - 6, p.y - 6, 12, 12);
     } else if (isHovered) {
-      // Hovering over this pin
       g2.setColor(HOVER_COLOR);
       g2.drawOval(p.x - 6, p.y - 6, 12, 12);
     }
@@ -266,7 +261,7 @@ public class CircuitRenderer {
     g2.fillOval(p.x - PIN_SIZE / 2, p.y - PIN_SIZE / 2, PIN_SIZE, PIN_SIZE);
   }
 
-  // --- Shapes (Existing code mostly unchanged below here) ---
+  // --- Shapes (Unchanged) ---
 
   private void drawSwitch(Graphics2D g2, Switch s, int x, int y, boolean sel) {
     if (sel) {
@@ -438,6 +433,8 @@ public class CircuitRenderer {
       return 0;
     if (c instanceof UnaryGate || c instanceof OutputProbe)
       return 1;
-    return 2;
+    // Don't assume everything else is 2. Ask the component!
+    // This allows CustomComponents to have 3, 4, 8, etc inputs.
+    return c.getInputCount();
   }
 }
