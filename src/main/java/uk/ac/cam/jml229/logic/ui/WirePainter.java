@@ -7,11 +7,6 @@ import java.util.List;
 
 public class WirePainter {
 
-  private static final Color WIRE_OFF = new Color(100, 100, 100);
-  private static final Color WIRE_ON = new Color(230, 50, 50);
-  private static final Color SELECTION_BORDER = new Color(0, 180, 255);
-  private static final Color HOVER_COLOR = new Color(255, 180, 0);
-
   public static final int HANDLE_SIZE = 6;
   public static final int HANDLE_HIT_SIZE = 10;
 
@@ -36,18 +31,18 @@ public class WirePainter {
 
   public void drawWire(Graphics2D g2, Shape path, boolean isSignalOn, boolean isSelected, boolean isHovered) {
     if (isSelected || isHovered) {
-      g2.setColor(isSelected ? SELECTION_BORDER : HOVER_COLOR);
+      g2.setColor(isSelected ? Theme.SELECTION_BORDER : Theme.HOVER_COLOR);
       g2.setStroke(new BasicStroke(6));
       g2.draw(path);
       g2.setStroke(new BasicStroke(3));
     }
-    g2.setColor(isSignalOn ? WIRE_ON : WIRE_OFF);
+    g2.setColor(isSignalOn ? Theme.WIRE_ON : Theme.WIRE_OFF);
     g2.draw(path);
   }
 
   public void drawHandle(Graphics2D g2, Point pt, boolean isSelected, boolean isHovered) {
     if (isSelected || isHovered) {
-      g2.setColor(isSelected ? SELECTION_BORDER : HOVER_COLOR);
+      g2.setColor(isSelected ? Theme.SELECTION_BORDER : Theme.HOVER_COLOR);
       int s = HANDLE_HIT_SIZE;
       g2.fillRect(pt.x - s / 2, pt.y - s / 2, s, s);
       g2.setColor(Color.WHITE);
@@ -56,7 +51,7 @@ public class WirePainter {
       g2.setColor(Color.WHITE);
       int s = HANDLE_SIZE;
       g2.fillRect(pt.x - s / 2, pt.y - s / 2, s, s);
-      g2.setColor(SELECTION_BORDER);
+      g2.setColor(Theme.SELECTION_BORDER);
       g2.drawRect(pt.x - s / 2, pt.y - s / 2, s, s);
     }
   }

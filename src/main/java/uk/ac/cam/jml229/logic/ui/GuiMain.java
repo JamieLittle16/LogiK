@@ -2,6 +2,7 @@ package uk.ac.cam.jml229.logic.ui;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.plaf.basic.BasicSplitPaneUI;
 import java.awt.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -25,6 +26,10 @@ public class GuiMain {
   private static JFrame frame;
   private static JLabel zoomStatusLabel;
 
+  private static JScrollPane scrollPalette;
+  private static JMenuBar menuBar;
+  private static JSplitPane splitPane;
+
   public static void main(String[] args) {
     System.setProperty("sun.java2d.opengl", "true");
     System.setProperty("awt.useSystemAAFontSettings", "on");
@@ -43,7 +48,7 @@ public class GuiMain {
       interaction.setPalette(palette);
 
       // --- Build Menu Bar ---
-      JMenuBar menuBar = new JMenuBar();
+      menuBar = new JMenuBar();
 
       // File Menu
       JMenu fileMenu = new JMenu("File");
@@ -124,16 +129,47 @@ public class GuiMain {
           KeyStroke.getKeyStroke(KeyEvent.VK_0, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       zoomResetItem.addActionListener(e -> circuitPanel.resetZoom());
 
+      // Dark Mode Item
+      JCheckBoxMenuItem darkModeItem = new JCheckBoxMenuItem("Dark Mode");
+      darkModeItem.addActionListener(e -> {
+        Theme.setDarkMode(darkModeItem.isSelected());
+        circuitPanel.updateTheme();
+        palette.updateTheme();
+
+        if (scrollPalette != null) {
+          scrollPalette.setBackground(Theme.PALETTE_BACKGROUND);
+          scrollPalette.getViewport().setBackground(Theme.PALETTE_BACKGROUND);
+        }
+
+        if (splitPane != null) {
+          splitPane.setBackground(Theme.PALETTE_BACKGROUND);
+          splitPane.repaint();
+        }
+
+        if (menuBar != null) {
+          menuBar.setBackground(Theme.isDarkMode ? Theme.PALETTE_BACKGROUND : null);
+          for (int i = 0; i < menuBar.getMenuCount(); i++) {
+            JMenu m = menuBar.getMenu(i);
+            if (m != null)
+              m.setForeground(Theme.TEXT_COLOR);
+          }
+          if (zoomStatusLabel != null) {
+            zoomStatusLabel.setForeground(Theme.PALETTE_HEADINGS);
+          }
+        }
+      });
+
       viewMenu.add(zoomInItem);
       viewMenu.add(zoomOutItem);
       viewMenu.addSeparator();
       viewMenu.add(zoomResetItem);
+      viewMenu.addSeparator();
+      viewMenu.add(darkModeItem);
 
       menuBar.add(fileMenu);
       menuBar.add(editMenu);
       menuBar.add(viewMenu);
 
-      // Status Info
       menuBar.add(Box.createHorizontalGlue());
       zoomStatusLabel = new JLabel("Zoom: 100%  ");
       zoomStatusLabel.setForeground(Color.GRAY);
@@ -147,19 +183,22 @@ public class GuiMain {
       });
 
       // --- Layout ---
-      JScrollPane scrollPalette = new JScrollPane(palette);
+      scrollPalette = new JScrollPane(palette);
       scrollPalette.setBorder(null);
       scrollPalette.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+      scrollPalette.getViewport().setBackground(Theme.PALETTE_BACKGROUND);
 
-      JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, scrollPalette, circuitPanel);
+      splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, scrollPalette, circuitPanel);
+
+      splitPane.setUI(new BasicSplitPaneUI());
+      splitPane.setBorder(null);
+
       splitPane.setDividerLocation(130);
       splitPane.setContinuousLayout(true);
       splitPane.setResizeWeight(0.0);
+      splitPane.setBackground(Theme.PALETTE_BACKGROUND);
 
       frame.add(splitPane);
-
-      frame.setSize(1280, 800);
-      frame.setLocationRelativeTo(null);
 
       // F11 Full Screen
       circuitPanel.addKeyListener(new KeyAdapter() {
@@ -170,7 +209,12 @@ public class GuiMain {
         }
       });
 
-      frame.setVisible(true);
+      // Define default windowed size (for when user exits fullscreen)
+      frame.setSize(1280, 800);
+      frame.setLocationRelativeTo(null);
+
+      // Full Screen by default
+      toggleFullScreen(frame);
       circuitPanel.requestFocusInWindow();
     });
   }
@@ -200,7 +244,7 @@ public class GuiMain {
       try {
         StorageManager.LoadResult result = StorageManager.load(fc.getSelectedFile());
         circuitPanel.setCircuit(result.circuit());
-        circuitPanel.getInteraction().resetHistory(); // Correctly reset history for new file
+        circuitPanel.getInteraction().resetHistory();
         for (CustomComponent cc : result.customTools()) {
           palette.addCustomTool(cc);
         }
@@ -214,11 +258,23 @@ public class GuiMain {
   }
 
   private static void toggleFullScreen(JFrame frame) {
-    frame.dispose();
+    // If the frame is visible, dispose of it to change decoration style
+    if (frame.isVisible()) {
+      frame.dispose();
+    }
+
     isFullScreen = !isFullScreen;
+
     if (isFullScreen) {
-      prevLocation = frame.getLocation();
-      prevSize = frame.getSize();
+      // Save previous state only if we were already visible (validating that the size
+      // is real)
+      // Otherwise, the defaults (1280x800) set in main() will be used if user exits
+      // fullscreen.
+      if (prevLocation == null && frame.isShowing()) {
+        prevLocation = frame.getLocation();
+        prevSize = frame.getSize();
+      }
+
       frame.setUndecorated(true);
       frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
       GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
@@ -234,6 +290,8 @@ public class GuiMain {
       gd.setFullScreenWindow(null);
       frame.setUndecorated(false);
       frame.setExtendedState(JFrame.NORMAL);
+
+      // Restore previous size/location
       if (prevLocation != null)
         frame.setLocation(prevLocation);
       if (prevSize != null)

@@ -7,26 +7,19 @@ import uk.ac.cam.jml229.logic.components.Component;
 
 public class ComponentPainter {
 
-  private static final Color SELECTION_BORDER = new Color(0, 180, 255);
-  private static final Color STUB_COLOR = new Color(0, 0, 0);
   private static final int PIN_SIZE = 8;
-  private static final Color HOVER_COLOR = new Color(255, 180, 0);
-  private static final Color PIN_COLOR = new Color(50, 50, 50);
 
   public void drawComponent(Graphics2D g2, Component c, boolean sel, boolean drawLabel) {
     AffineTransform oldTx = g2.getTransform();
     int x = c.getX();
     int y = c.getY();
 
-    // Calculate Center for Rotation
     Dimension dim = getComponentSize(c);
     int cx = x + dim.width / 2;
     int cy = y + dim.height / 2;
 
-    // Apply Rotation for the Body
     g2.rotate(Math.toRadians(c.getRotation() * 90), cx, cy);
 
-    // Draw Body
     if (c instanceof Switch)
       drawSwitch(g2, (Switch) c, x, y, sel);
     else if (c instanceof OutputProbe)
@@ -48,28 +41,18 @@ public class ComponentPainter {
     else
       drawGenericBox(g2, c, x, y, sel);
 
-    // Draw Label (FIXED: Always Horizontal)
     if (drawLabel && !(c instanceof CustomComponent)) {
-      g2.setColor(Color.BLACK);
+      g2.setColor(Theme.TEXT_COLOR);
       g2.setFont(new Font(Font.DIALOG, Font.PLAIN, 11));
       FontMetrics fm = g2.getFontMetrics();
       String name = c.getName();
       int tw = fm.stringWidth(name);
-
-      // Calculate where the text *would* be drawn in local coords
       int textX = x + (50 - tw) / 2;
       int textY = y - 5;
 
-      // Save current rotated transform
       AffineTransform rotatedTx = g2.getTransform();
-
-      // Rotate back around the component center to make text upright
       g2.rotate(Math.toRadians(-c.getRotation() * 90), cx, cy);
-
-      // Calculate position. Since we are now in "World" orientation
       g2.drawString(name, textX, textY);
-
-      // Restore rotation so subsequent operations (if any) are correct
       g2.setTransform(rotatedTx);
     }
 
@@ -79,15 +62,13 @@ public class ComponentPainter {
   public void drawStubs(Graphics2D g2, Component c) {
     if (c instanceof OutputProbe)
       return;
-
-    // Need to apply rotation here too because stubs are part of the body
     AffineTransform oldTx = g2.getTransform();
     Dimension dim = getComponentSize(c);
     int cx = c.getX() + dim.width / 2;
     int cy = c.getY() + dim.height / 2;
     g2.rotate(Math.toRadians(c.getRotation() * 90), cx, cy);
 
-    g2.setColor(STUB_COLOR);
+    g2.setColor(Theme.STUB_COLOR); // THEME
     g2.setStroke(new BasicStroke(3));
     int x = c.getX();
     int y = c.getY();
@@ -110,51 +91,46 @@ public class ComponentPainter {
         endX = x + 8;
       g2.drawLine(x - 10, y + yOffset, endX, y + yOffset);
     }
-
     g2.setTransform(oldTx);
   }
 
   public void drawPinCircle(Graphics2D g2, Point p, boolean isHovered, boolean isActive) {
     if (isActive) {
-      g2.setColor(SELECTION_BORDER);
+      g2.setColor(Theme.SELECTION_BORDER);
       g2.fillOval(p.x - 6, p.y - 6, 12, 12);
     } else if (isHovered) {
-      g2.setColor(HOVER_COLOR);
+      g2.setColor(Theme.HOVER_COLOR);
       g2.drawOval(p.x - 6, p.y - 6, 12, 12);
     }
-    g2.setColor(PIN_COLOR);
+    g2.setColor(Theme.PIN_COLOR); // THEME
     g2.fillOval(p.x - PIN_SIZE / 2, p.y - PIN_SIZE / 2, PIN_SIZE, PIN_SIZE);
   }
 
-  // --- MATHS: PIN LOCATIONS (ROTATION AWARE) ---
+  // --- Math Methods ---
   public Point getPinLocation(Component c, boolean isInput, int index) {
     int dx, dy;
-    if (!isInput) { // Output
+    if (!isInput) {
       int outCount = c.getOutputCount();
       dx = 60;
       dy = (outCount <= 1) ? 20 : 10 + (index * 20);
-    } else { // Input
+    } else {
       int inCount = getInputCount(c);
       dx = -10;
       dy = (inCount == 1) ? 20 : 10 + (index * 20);
     }
-
     Dimension dim = getComponentSize(c);
     int w = dim.width;
     int h = dim.height;
     int cx = w / 2;
     int cy = h / 2;
-
     int rx = dx - cx;
     int ry = dy - cy;
-
     int rotatedX = rx, rotatedY = ry;
     for (int i = 0; i < c.getRotation(); i++) {
       int temp = rotatedX;
       rotatedX = -rotatedY;
       rotatedY = temp;
     }
-
     return new Point(c.getX() + cx + rotatedX, c.getY() + cy + rotatedY);
   }
 
@@ -185,15 +161,15 @@ public class ComponentPainter {
     return new Rectangle(c.getX(), c.getY(), w, h);
   }
 
-  // --- Private Drawing Primitives ---
+  // --- Primitives ---
 
   private void drawSwitch(Graphics2D g2, Switch s, int x, int y, boolean sel) {
     if (sel) {
-      g2.setColor(SELECTION_BORDER);
+      g2.setColor(Theme.SELECTION_BORDER);
       g2.setStroke(new BasicStroke(5));
       g2.drawRoundRect(x, y + 5, 40, 30, 15, 15);
     }
-    g2.setColor(Color.DARK_GRAY);
+    g2.setColor(Theme.SWITCH_FILL); // THEME
     g2.fillRoundRect(x, y + 5, 40, 30, 30, 30);
     boolean on = s.getOutputWire() != null && s.getOutputWire().getSignal();
     int circleX = on ? x + 22 : x + 2;
@@ -207,7 +183,7 @@ public class ComponentPainter {
 
   private void drawLight(Graphics2D g2, OutputProbe p, int x, int y, boolean sel) {
     if (sel) {
-      g2.setColor(SELECTION_BORDER);
+      g2.setColor(Theme.SELECTION_BORDER);
       g2.setStroke(new BasicStroke(5));
       g2.drawOval(x, y, 40, 40);
     }
@@ -228,39 +204,6 @@ public class ComponentPainter {
     g2.drawOval(x, y, 40, 40);
     g2.setColor(new Color(255, 255, 255, 100));
     g2.fillOval(x + 10, y + 8, 12, 8);
-  }
-
-  private void drawGenericBox(Graphics2D g2, Component c, int x, int y, boolean sel) {
-    int inputCount = getInputCount(c);
-    int outputCount = c.getOutputCount();
-    int maxPins = Math.max(inputCount, outputCount);
-    int h = Math.max(40, maxPins * 20);
-    int w = 50;
-
-    if (sel) {
-      g2.setColor(SELECTION_BORDER);
-      g2.setStroke(new BasicStroke(5));
-      g2.drawRect(x, y, w, h);
-    }
-    g2.setColor(new Color(220, 220, 220));
-    g2.fillRect(x, y, w, h);
-    g2.setColor(new Color(60, 60, 60));
-    g2.fillRect(x, y, w, 16);
-    g2.setColor(Color.BLACK);
-    g2.setStroke(new BasicStroke(2));
-    g2.drawRect(x, y, w, h);
-
-    g2.setColor(Color.WHITE);
-    g2.setFont(new Font("SansSerif", Font.BOLD, 10));
-    FontMetrics fm = g2.getFontMetrics();
-    String name = c.getName();
-    if (fm.stringWidth(name) > 46) {
-      while (name.length() > 0 && fm.stringWidth(name + "..") > 46)
-        name = name.substring(0, name.length() - 1);
-      name += "..";
-    }
-    int textWidth = fm.stringWidth(name);
-    g2.drawString(name, x + (w - textWidth) / 2, y + 12);
   }
 
   private void drawAndGate(Graphics2D g2, Component c, int x, int y, boolean sel) {
@@ -288,11 +231,11 @@ public class ComponentPainter {
     b.moveTo(x - 4, y);
     b.quadTo(x + 11, y + 20, x - 4, y + 40);
     if (sel) {
-      g2.setColor(SELECTION_BORDER);
+      g2.setColor(Theme.SELECTION_BORDER);
       g2.setStroke(new BasicStroke(5));
       g2.draw(b);
     }
-    g2.setColor(Color.BLACK);
+    g2.setColor(Theme.COMP_BORDER);
     g2.setStroke(new BasicStroke(2));
     g2.draw(b);
     drawOrGate(g2, c, x + 5, y, sel);
@@ -324,28 +267,58 @@ public class ComponentPainter {
 
   private void fillGate(Graphics2D g2, Path2D p, boolean sel) {
     if (sel) {
-      g2.setColor(SELECTION_BORDER);
+      g2.setColor(Theme.SELECTION_BORDER);
       g2.setStroke(new BasicStroke(5));
       g2.draw(p);
     }
-    GradientPaint gp = new GradientPaint(0, 0, new Color(70, 120, 200), 0, 40, new Color(120, 160, 240));
+    GradientPaint gp = new GradientPaint(0, 0, Theme.COMP_FILL_GRADIENT_1, 0, 40, Theme.COMP_FILL_GRADIENT_2); // THEME
     g2.setPaint(gp);
     g2.fill(p);
-    g2.setColor(Color.BLACK);
+    g2.setColor(Theme.COMP_BORDER);
     g2.setStroke(new BasicStroke(2));
     g2.draw(p);
   }
 
   private void drawBubble(Graphics2D g2, int x, int y, boolean sel) {
     if (sel) {
-      g2.setColor(SELECTION_BORDER);
+      g2.setColor(Theme.SELECTION_BORDER);
       g2.setStroke(new BasicStroke(5));
       g2.drawOval(x, y, 10, 10);
     }
     g2.setColor(Color.WHITE);
     g2.fillOval(x, y, 10, 10);
-    g2.setColor(Color.BLACK);
+    g2.setColor(Theme.COMP_BORDER);
     g2.setStroke(new BasicStroke(2));
     g2.drawOval(x, y, 10, 10);
+  }
+
+  private void drawGenericBox(Graphics2D g2, Component c, int x, int y, boolean sel) {
+    Dimension d = getComponentSize(c);
+    int w = d.width;
+    int h = d.height;
+    if (sel) {
+      g2.setColor(Theme.SELECTION_BORDER);
+      g2.setStroke(new BasicStroke(5));
+      g2.drawRect(x, y, w, h);
+    }
+    g2.setColor(Theme.GENERIC_BOX_FILL);
+    g2.fillRect(x, y, w, h);
+    g2.setColor(Theme.GENERIC_HEADER_FILL);
+    g2.fillRect(x, y, w, 16);
+    g2.setColor(Theme.COMP_BORDER);
+    g2.setStroke(new BasicStroke(2));
+    g2.drawRect(x, y, w, h);
+
+    g2.setColor(Color.WHITE);
+    g2.setFont(new Font("SansSerif", Font.BOLD, 10));
+    FontMetrics fm = g2.getFontMetrics();
+    String name = c.getName();
+    if (fm.stringWidth(name) > 46) {
+      while (name.length() > 0 && fm.stringWidth(name + "..") > 46)
+        name = name.substring(0, name.length() - 1);
+      name += "..";
+    }
+    int textWidth = fm.stringWidth(name);
+    g2.drawString(name, x + (w - textWidth) / 2, y + 12);
   }
 }

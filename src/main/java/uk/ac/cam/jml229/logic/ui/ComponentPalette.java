@@ -7,6 +7,7 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.AffineTransform;
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
+import uk.ac.cam.jml229.logic.ui.Theme;
 
 // Implement Scrollable to force the panel to track the Viewport width exactly
 public class ComponentPalette extends JPanel implements Scrollable {
@@ -21,7 +22,7 @@ public class ComponentPalette extends JPanel implements Scrollable {
     this.renderer = renderer;
 
     setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-    setBackground(new Color(245, 245, 245));
+    setBackground(Theme.PALETTE_BACKGROUND);
 
     addLabel("IO / Probes");
     addTool(new Switch("Switch"));
@@ -39,6 +40,35 @@ public class ComponentPalette extends JPanel implements Scrollable {
     addTool(new BufferGate("BUFF"));
   }
 
+  public void updateTheme() {
+    setBackground(Theme.PALETTE_BACKGROUND);
+    for (java.awt.Component comp : getComponents()) {
+      updateComponentTheme(comp);
+    }
+    revalidate();
+    repaint();
+  }
+
+  private void updateComponentTheme(java.awt.Component c) {
+    if (c instanceof JPanel) {
+      JPanel p = (JPanel) c;
+      // Section panels are opaque=false, so ignore their bg
+      // Buttons have custom bg logic
+      if (p.getComponentCount() > 0 && p.getComponent(0) instanceof JLabel) {
+        // It's a label wrapper
+        ((JLabel) p.getComponent(0)).setForeground(Theme.PALETTE_HEADINGS);
+      } else if (p.getMouseListeners().length > 0) {
+        // It's a button
+        p.setBackground(Theme.BUTTON_BACKGROUND);
+      } else {
+        // Recursively update section panels
+        for (java.awt.Component child : p.getComponents()) {
+          updateComponentTheme(child);
+        }
+      }
+    }
+  }
+
   private void addLabel(String text) {
     if (getComponentCount() > 0) {
       add(Box.createRigidArea(new Dimension(0, 15)));
@@ -46,7 +76,7 @@ public class ComponentPalette extends JPanel implements Scrollable {
 
     JLabel label = new JLabel(text);
     label.setFont(new Font("SansSerif", Font.BOLD, 12));
-    label.setForeground(Color.GRAY);
+    label.setForeground(Theme.PALETTE_HEADINGS);
     // Keep headers left-aligned for visual structure
     label.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 
@@ -91,10 +121,11 @@ public class ComponentPalette extends JPanel implements Scrollable {
         g2.setColor(getBackground());
         g2.fillRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 15, 15);
 
-        if (getBackground().equals(Color.WHITE) || getBackground().getGreen() > 240) {
-          g2.setColor(new Color(200, 200, 200));
+        // Dynamic Border color based on theme
+        if (getBackground().equals(Theme.BUTTON_BACKGROUND)) {
+          g2.setColor(Theme.BUTTON_BORDER);
         } else {
-          g2.setColor(new Color(100, 150, 255));
+          g2.setColor(new Color(100, 150, 255)); // Hover
         }
         g2.drawRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 15, 15);
 
@@ -123,7 +154,7 @@ public class ComponentPalette extends JPanel implements Scrollable {
 
     button.setPreferredSize(new Dimension(100, 60));
     button.setMaximumSize(new Dimension(100, 60));
-    button.setBackground(Color.WHITE);
+    button.setBackground(Theme.BUTTON_BACKGROUND);
     button.setOpaque(false);
     button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
@@ -141,7 +172,7 @@ public class ComponentPalette extends JPanel implements Scrollable {
 
       @Override
       public void mouseExited(MouseEvent e) {
-        button.setBackground(Color.WHITE);
+        button.setBackground(Theme.BUTTON_BACKGROUND);
       }
     });
 

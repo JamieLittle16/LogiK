@@ -43,6 +43,11 @@ public class CircuitPanel extends JPanel {
     setBackground(Color.WHITE);
   }
 
+  public void updateTheme() {
+    setBackground(Theme.PANEL_BACKGROUND);
+    repaint();
+  }
+
   public void setOnZoomChanged(Consumer<Double> listener) {
     this.onZoomChanged = listener;
   }

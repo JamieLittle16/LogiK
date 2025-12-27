@@ -28,13 +28,24 @@ public class Circuit {
    * Removes a component and safely cleans up all connected wires.
    */
   public void removeComponent(Component c) {
-    // Remove wires driven BY this component (All Outputs)
+    // 1. Remove wires driven BY this component (All Outputs)
     List<Wire> outputWires = new ArrayList<>();
     for (Wire w : wires) {
       if (w.getSource() == c) {
         outputWires.add(w);
       }
     }
+
+    // --- Turn off the destinations before deleting the wire ---
+    for (Wire w : outputWires) {
+      for (Wire.PortConnection pc : w.getDestinations()) {
+        // Reset the destination input to FALSE so it doesn't stay "Green"
+        pc.component.setInput(pc.inputIndex, false);
+        // Force the destination to recalculate (e.g. LED turns dark)
+        pc.component.update();
+      }
+    }
+
     wires.removeAll(outputWires);
 
     // Remove wires driving INTO this component (Inputs)
@@ -55,7 +66,6 @@ public class Circuit {
 
   /**
    * Advanced Connection (Source Output Index -> Dest Input Index)
-   * Essential for Custom Components with multiple outputs.
    */
   public boolean addConnection(Component source, int sourceOutputIndex, Component dest, int inputIndex) {
     if (source == dest)
@@ -76,11 +86,12 @@ public class Circuit {
 
     if (w == null) {
       w = new Wire(source);
-      source.setOutputWire(sourceOutputIndex, w); // Set at specific index
+      source.setOutputWire(sourceOutputIndex, w);
       wires.add(w);
       isNewWire = true;
     }
 
+    // If it's a new wire, we calculate the source's output immediately
     if (isNewWire) {
       source.update();
     }
@@ -88,12 +99,13 @@ public class Circuit {
     w.addDestination(dest, inputIndex);
     dest.setInput(inputIndex, w.getSignal());
 
+    dest.update();
+
     return true;
   }
 
   /**
    * Removes a specific connection (Wire segment).
-   * IMPORTANT: Resets the destination input to FALSE to prevent "stuck" signals.
    */
   public void removeConnection(Component dest, int inputIndex) {
     // Find the wire connected to this specific input
@@ -109,15 +121,14 @@ public class Circuit {
       }
 
       if (wasConnected) {
-        // Reset signal to FALSE (The Bug Fix from earlier!)
+        // Reset signal to FALSE (The Bug Fix you already had!)
         dest.setInput(inputIndex, false);
+
+        // RECOMMENDATION: Update component so it visually changes color immediately
+        dest.update();
 
         // Remove the physical connection
         w.removeDestination(dest, inputIndex);
-
-        // TODO (Optional) If wire has no more destinations, we could delete the wire
-        // entirely.
-        // For now, we leave it dangling
         return;
       }
     }
@@ -125,7 +136,6 @@ public class Circuit {
 
   /**
    * Creates a deep copy of this circuit.
-   * Used for Copy/Paste and for instantiating Custom Components.
    */
   public Circuit cloneCircuit() {
     Circuit copy = new Circuit();
@@ -143,8 +153,6 @@ public class Circuit {
       if (oldSource == null)
         continue;
 
-      // Which output index is this wire attached to?
-      // We have to search the source's output list to find the index.
       int sourceIndex = -1;
       for (int i = 0; i < oldSource.getOutputCount(); i++) {
         if (oldSource.getOutputWire(i) == originalWire) {
@@ -161,7 +169,6 @@ public class Circuit {
         Component oldDest = pc.component;
         Component newDest = oldToNew.get(oldDest);
 
-        // Use the explicit index addConnection
         copy.addConnection(newSource, sourceIndex, newDest, pc.inputIndex);
       }
     }

@@ -58,11 +58,11 @@ public class CircuitRenderer {
     drawComponents(g2, components, selectedComponents, hoveredPin, activePin(hoveredPin, connectionStartPin));
 
     if (connectionStartPin != null && currentMousePoint != null) {
-      g2.setColor(Color.BLACK);
+      g2.setColor(Theme.WIRE_OFF);
       g2.setStroke(new BasicStroke(2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 10, new float[] { 5 }, 0));
       g2.drawLine(connectionStartPin.location().x, connectionStartPin.location().y, currentMousePoint.x,
           currentMousePoint.y);
-      g2.setColor(HOVER_COLOR);
+      g2.setColor(Theme.HOVER_COLOR);
       g2.fillOval(currentMousePoint.x - 4, currentMousePoint.y - 4, 8, 8);
     }
 
@@ -94,7 +94,7 @@ public class CircuitRenderer {
       return;
     Object oldAA = g2.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-    g2.setColor(GRID_COLOR);
+    g2.setColor(Theme.GRID_COLOR);
     g2.setStroke(new BasicStroke(1));
     int startX = (int) (Math.floor(bounds.x / (double) GRID_SIZE) * GRID_SIZE);
     int startY = (int) (Math.floor(bounds.y / (double) GRID_SIZE) * GRID_SIZE);
@@ -179,9 +179,9 @@ public class CircuitRenderer {
 
   private void drawSelectionBox(Graphics2D g2, Rectangle rect) {
     if (rect != null) {
-      g2.setColor(SELECTION_FILL);
+      g2.setColor(Theme.SELECTION_FILL);
       g2.fill(rect);
-      g2.setColor(SELECTION_BORDER);
+      g2.setColor(Theme.SELECTION_BORDER);
       g2.setStroke(new BasicStroke(1, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[] { 9 }, 0));
       g2.draw(rect);
     }
