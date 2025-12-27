@@ -15,7 +15,7 @@ public class CircuitRenderer {
   private final ComponentPainter componentPainter = new ComponentPainter();
   private final WirePainter wirePainter = new WirePainter();
 
-  // --- Public Constants (Required by CircuitInteraction) ---
+  // --- Public Constants ---
   public static final int PIN_SIZE = 8;
   public static final int HANDLE_SIZE = 6;
   public static final int HANDLE_HIT_SIZE = 10;
@@ -26,6 +26,9 @@ public class CircuitRenderer {
   private static final Color SELECTION_FILL = new Color(0, 180, 255, 40);
   private static final Color SELECTION_BORDER = new Color(0, 180, 255);
   private static final Color HOVER_COLOR = new Color(255, 180, 0);
+
+  // Cached stroke to reduce garbage collection during renders
+  private static final Stroke GRID_STROKE = new BasicStroke(1);
 
   // --- Shared Types ---
   public record Pin(Component component, int index, boolean isInput, Point location) {
@@ -55,24 +58,24 @@ public class CircuitRenderer {
 
     setupGraphics(g2);
 
-    // 1. Grid
+    // Grid (Optimised)
     drawGrid(g2, viewBounds);
 
-    // 2. Wires
+    // Wires
     drawWires(g2, wires, selectedWire, hoveredWire, selectedWaypoint, hoveredWaypoint);
 
-    // 3. Components
+    // Components
     drawComponents(g2, components, selectedComponents, hoveredPin, activePin(hoveredPin, connectionStartPin));
 
-    // 4. Wiring Line (Ghost)
+    // Wiring Line (Ghost)
     if (connectionStartPin != null && currentMousePoint != null) {
       drawWiringGhost(g2, connectionStartPin, currentMousePoint);
     }
 
-    // 5. Selection Box
+    // Selection Box
     drawSelectionBox(g2, selectionRect);
 
-    // 6. Ghost Component (Placement)
+    // Ghost Component (Placement)
     if (ghostComponent != null) {
       drawGhostComponent(g2, ghostComponent);
     }
@@ -81,10 +84,20 @@ public class CircuitRenderer {
   // --- Helper Methods ---
 
   private void setupGraphics(Graphics2D g2) {
+    // Enable Anti-Aliasing for smooth wires/shapes
     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
     g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-    g2.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
-    g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+
+    // OPTIMISATION: Use Speed over Quality for rendering
+    g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
+
+    // OPTIMISATION: Use Default or Normalize for strokes. 'PURE' is very slow on
+    // high-res.
+    g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_DEFAULT);
+
+    // Disable expensive fractional metrics unless strictly needed for text
+    // alignment
+    g2.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_OFF);
   }
 
   private Pin activePin(Pin hovered, Pin start) {
@@ -96,17 +109,27 @@ public class CircuitRenderer {
   private void drawGrid(Graphics2D g2, Rectangle bounds) {
     if (bounds == null)
       return;
+
+    // OPTIMISATION: Disable Anti-Aliasing for the grid lines.
+    // Vertical/Horizontal lines look sharper and draw much faster without AA.
+    Object oldAA = g2.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
+    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+
     g2.setColor(GRID_COLOR);
-    g2.setStroke(new BasicStroke(1));
+    g2.setStroke(GRID_STROKE);
 
     int startX = (int) (Math.floor(bounds.x / (double) GRID_SIZE) * GRID_SIZE);
     int startY = (int) (Math.floor(bounds.y / (double) GRID_SIZE) * GRID_SIZE);
 
+    // Only draw lines visible within the bounds
     for (int x = startX; x < bounds.x + bounds.width + GRID_SIZE; x += GRID_SIZE)
       g2.drawLine(x, bounds.y, x, bounds.y + bounds.height);
 
     for (int y = startY; y < bounds.y + bounds.height + GRID_SIZE; y += GRID_SIZE)
       g2.drawLine(bounds.x, y, bounds.x + bounds.width, y);
+
+    // Restore AA for subsequent layers (Wires/Components)
+    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, oldAA);
   }
 
   private void drawWires(Graphics2D g2, List<Wire> wires,
@@ -119,7 +142,6 @@ public class CircuitRenderer {
       if (source == null)
         continue;
 
-      // Calculate Source Pin Location
       int sourceIndex = 0;
       for (int i = 0; i < source.getOutputCount(); i++) {
         if (source.getOutputWire(i) == w) {
@@ -136,18 +158,13 @@ public class CircuitRenderer {
         boolean isWireSelected = (selectedWire != null && selectedWire.wire() == w && selectedWire.connection() == pc);
         boolean isWireHovered = (hoveredWire != null && hoveredWire.wire() == w && hoveredWire.connection() == pc);
 
-        // Delegate Bezier Path creation to WirePainter
         Shape path = wirePainter.createWireShape(p1, p2, pc.waypoints);
-
-        // Delegate Drawing to WirePainter
         wirePainter.drawWire(g2, path, w.getSignal(), isWireSelected, isWireHovered);
 
-        // Draw Waypoint Handles
         if (isWireSelected || isWireHovered || !pc.waypoints.isEmpty()) {
           for (Point pt : pc.waypoints) {
             boolean isPtSelected = (selectedWaypoint != null && selectedWaypoint.point() == pt);
             boolean isPtHovered = (hoveredWaypoint != null && hoveredWaypoint.point() == pt);
-
             if (isPtSelected || isPtHovered || isWireSelected) {
               wirePainter.drawHandle(g2, pt, isPtSelected, isPtHovered);
             }
@@ -162,11 +179,9 @@ public class CircuitRenderer {
     for (Component c : components) {
       boolean isSelected = selectedComponents.contains(c);
 
-      // Delegate to ComponentPainter
       componentPainter.drawStubs(g2, c);
       componentPainter.drawComponent(g2, c, isSelected, true);
 
-      // Draw Pins (Coordination logic stays here, primitive drawing is delegated)
       if (!(c instanceof OutputProbe)) {
         int outCount = c.getOutputCount();
         for (int i = 0; i < outCount; i++) {
@@ -209,17 +224,12 @@ public class CircuitRenderer {
   private void drawGhostComponent(Graphics2D g2, Component ghost) {
     Composite originalComposite = g2.getComposite();
     g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
-
     componentPainter.drawComponent(g2, ghost, false, false);
     componentPainter.drawStubs(g2, ghost);
-
     g2.setComposite(originalComposite);
   }
 
-  // --- Proxies for Interaction/HitTester ---
-  // These bridge the gap so other classes don't need to know about Painters
-  // directly
-
+  // --- Proxies ---
   public Shape createWireShape(Point start, Point end, List<Point> waypoints) {
     return wirePainter.createWireShape(start, end, waypoints);
   }
