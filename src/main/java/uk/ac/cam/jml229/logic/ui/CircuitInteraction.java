@@ -528,6 +528,13 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   public void mouseClicked(MouseEvent e) {
     if (connectionStartPin == null && !isDraggingItems && componentToPlace == null) {
       Point worldPt = getWorldPoint(e);
+
+      // Check for Pin/Waypoint clicks FIRST to avoid toggling switch when wiring
+      if (hitTester.findPinAt(worldPt) != null)
+        return;
+      if (hitTester.findWaypointAt(worldPt) != null)
+        return;
+
       Component c = hitTester.findComponentAt(worldPt);
       if (c instanceof Switch) {
         ((Switch) c).toggle(!((Switch) c).getState());
