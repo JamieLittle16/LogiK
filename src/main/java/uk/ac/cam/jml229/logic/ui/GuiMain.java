@@ -31,7 +31,7 @@ public class GuiMain {
     System.setProperty("swing.aatext", "true");
 
     SwingUtilities.invokeLater(() -> {
-      frame = new JFrame("LogiK");
+      frame = new JFrame("Logic Simulator");
       frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
       // --- Init Core Components ---
@@ -42,7 +42,7 @@ public class GuiMain {
       palette = new ComponentPalette(interaction, renderer);
       interaction.setPalette(palette);
 
-      // --- . Build Menu Bar ---
+      // --- Build Menu Bar ---
       JMenuBar menuBar = new JMenuBar();
 
       // File Menu
@@ -60,17 +60,30 @@ public class GuiMain {
       fileMenu.add(saveItem);
       fileMenu.add(loadItem);
 
+      // Edit Menu
+      JMenu editMenu = new JMenu("Edit");
+
+      JMenuItem rotateItem = new JMenuItem("Rotate");
+      rotateItem.setAccelerator(
+          KeyStroke.getKeyStroke(KeyEvent.VK_R, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
+      rotateItem.addActionListener(e -> circuitPanel.rotateSelection());
+
+      JMenuItem deleteItem = new JMenuItem("Delete");
+      deleteItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0));
+      deleteItem.addActionListener(e -> circuitPanel.deleteSelection());
+
+      editMenu.add(rotateItem);
+      editMenu.add(deleteItem);
+
       // View Menu
       JMenu viewMenu = new JMenu("View");
 
       JMenuItem zoomInItem = new JMenuItem("Zoom In");
-      // Ctrl + Equals (Standard for Zoom In)
       zoomInItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       zoomInItem.addActionListener(e -> circuitPanel.zoomIn());
 
       JMenuItem zoomOutItem = new JMenuItem("Zoom Out");
-      // Ctrl + Minus
       zoomOutItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       zoomOutItem.addActionListener(e -> circuitPanel.zoomOut());
@@ -86,17 +99,17 @@ public class GuiMain {
       viewMenu.add(zoomResetItem);
 
       menuBar.add(fileMenu);
+      menuBar.add(editMenu);
       menuBar.add(viewMenu);
 
-      // Status Info (Far Right)
-      menuBar.add(Box.createHorizontalGlue()); // Pushes everything after it to the right
+      // Status Info
+      menuBar.add(Box.createHorizontalGlue());
       zoomStatusLabel = new JLabel("Zoom: 100%  ");
       zoomStatusLabel.setForeground(Color.GRAY);
       menuBar.add(zoomStatusLabel);
 
       frame.setJMenuBar(menuBar);
 
-      // Connect Zoom Callback
       circuitPanel.setOnZoomChanged(scale -> {
         int pct = (int) (scale * 100);
         zoomStatusLabel.setText("Zoom: " + pct + "%  ");

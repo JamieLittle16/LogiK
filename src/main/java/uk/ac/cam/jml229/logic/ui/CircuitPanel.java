@@ -82,6 +82,15 @@ public class CircuitPanel extends JPanel {
       onZoomChanged.accept(scale);
   }
 
+  // --- Edit Actions (Proxies) ---
+  public void rotateSelection() {
+    interaction.rotateSelection();
+  }
+
+  public void deleteSelection() {
+    interaction.deleteSelection();
+  }
+
   // --- Getters/Setters ---
   public CircuitInteraction getInteraction() {
     return interaction;

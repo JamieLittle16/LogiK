@@ -125,6 +125,18 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     panel.repaint();
   }
 
+  public void rotateSelection() {
+    if (componentToPlace != null) {
+      componentToPlace.rotate();
+      panel.repaint();
+    } else if (!selectedComponents.isEmpty()) {
+      for (Component c : selectedComponents) {
+        c.rotate();
+      }
+      panel.repaint();
+    }
+  }
+
   public void deleteSelection() {
     if (selectedWaypoint != null) {
       selectedWaypoint.connection().waypoints.remove(selectedWaypoint.point());
