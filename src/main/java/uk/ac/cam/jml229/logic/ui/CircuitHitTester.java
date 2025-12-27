@@ -1,0 +1,147 @@
+package uk.ac.cam.jml229.logic.ui;
+
+import java.awt.*;
+import java.awt.geom.*;
+import java.util.ArrayList;
+import java.util.List;
+
+import uk.ac.cam.jml229.logic.components.Component;
+import uk.ac.cam.jml229.logic.model.Circuit;
+import uk.ac.cam.jml229.logic.model.Wire;
+import uk.ac.cam.jml229.logic.ui.CircuitRenderer.Pin;
+import uk.ac.cam.jml229.logic.ui.CircuitRenderer.WaypointRef;
+import uk.ac.cam.jml229.logic.ui.CircuitRenderer.WireSegment;
+
+public class CircuitHitTester {
+
+  private final Circuit circuit;
+  private final CircuitRenderer renderer;
+
+  public CircuitHitTester(Circuit circuit, CircuitRenderer renderer) {
+    this.circuit = circuit;
+    this.renderer = renderer;
+  }
+
+  public Pin findPinAt(Point p) {
+    int threshold = CircuitRenderer.PIN_SIZE + 4;
+    for (Component c : circuit.getComponents()) {
+      // Check Outputs
+      int outCount = c.getOutputCount();
+      for (int i = 0; i < outCount; i++) {
+        Point outLoc = renderer.getPinLocation(c, false, i);
+        if (p.distance(outLoc) <= threshold)
+          return new Pin(c, i, false, outLoc);
+      }
+      // Check Inputs
+      int inputCount = renderer.getInputCount(c);
+      for (int i = 0; i < inputCount; i++) {
+        Point inLoc = renderer.getPinLocation(c, true, i);
+        if (p.distance(inLoc) <= threshold)
+          return new Pin(c, i, true, inLoc);
+      }
+    }
+    return null;
+  }
+
+  public WaypointRef findWaypointAt(Point p) {
+    int hitSize = 8;
+    for (Wire w : circuit.getWires()) {
+      for (Wire.PortConnection pc : w.getDestinations()) {
+        for (Point pt : pc.waypoints) {
+          if (p.distance(pt) <= hitSize) {
+            return new WaypointRef(pc, pt);
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  public WireSegment findWireAt(Point p) {
+    int hitThreshold = 5;
+    for (Wire w : circuit.getWires()) {
+      Component src = w.getSource();
+      if (src == null)
+        continue;
+
+      // Find Source Location
+      int outputIndex = 0;
+      for (int i = 0; i < src.getOutputCount(); i++) {
+        if (src.getOutputWire(i) == w) {
+          outputIndex = i;
+          break;
+        }
+      }
+      Point p1 = renderer.getPinLocation(src, false, outputIndex);
+
+      // Check all destination paths
+      for (Wire.PortConnection pc : w.getDestinations()) {
+        Point p2 = renderer.getPinLocation(pc.component, true, pc.inputIndex);
+        Shape path = renderer.createWireShape(p1, p2, pc.waypoints);
+        Shape strokedShape = new BasicStroke(hitThreshold).createStrokedShape(path);
+
+        if (strokedShape.contains(p))
+          return new WireSegment(w, pc);
+      }
+    }
+    return null;
+  }
+
+  public Component findComponentAt(Point p) {
+    // Reverse order to select top-most component first
+    List<Component> comps = circuit.getComponents();
+    for (int i = comps.size() - 1; i >= 0; i--) {
+      Component c = comps.get(i);
+      int inputCount = renderer.getInputCount(c);
+      int outputCount = c.getOutputCount();
+      int maxPins = Math.max(inputCount, outputCount);
+      int h = Math.max(40, maxPins * 20);
+      int w = 50;
+
+      if (p.x >= c.getX() && p.x <= c.getX() + w && p.y >= c.getY() && p.y <= c.getY() + h)
+        return c;
+    }
+    return null;
+  }
+
+  /**
+   * Calculates the best index to insert a new waypoint into an existing wire
+   * segment.
+   */
+  public int getWaypointInsertionIndex(WireSegment ws, Point clickPt) {
+    Wire.PortConnection pc = ws.connection();
+    Wire w = ws.wire();
+    List<Point> waypoints = pc.waypoints;
+
+    Component src = w.getSource();
+    int srcIdx = 0;
+    for (int i = 0; i < src.getOutputCount(); i++)
+      if (src.getOutputWire(i) == w)
+        srcIdx = i;
+    Point start = renderer.getPinLocation(src, false, srcIdx);
+    Point end = renderer.getPinLocation(pc.component, true, pc.inputIndex);
+
+    // Build full path for geometry check
+    List<Point> fullPath = new ArrayList<>();
+    fullPath.add(start);
+    fullPath.addAll(waypoints);
+    fullPath.add(end);
+
+    // Check which Bezier segment was clicked
+    for (int i = 0; i < fullPath.size() - 1; i++) {
+      Point p1 = fullPath.get(i);
+      Point p2 = fullPath.get(i + 1);
+
+      GeneralPath segmentPath = new GeneralPath();
+      segmentPath.moveTo(p1.x, p1.y);
+      double dist = Math.abs(p2.x - p1.x) * 0.5;
+      segmentPath.curveTo(p1.x + dist, p1.y, p2.x - dist, p2.y, p2.x, p2.y);
+
+      Shape stroked = new BasicStroke(7).createStrokedShape(segmentPath);
+      if (stroked.contains(clickPt)) {
+        return i; // Insert at this index
+      }
+    }
+    return waypoints.size(); // Fallback to append
+  }
+}

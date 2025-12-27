@@ -126,7 +126,7 @@ public class ComponentPainter {
     return c.getInputCount();
   }
 
-  // --- Private Drawing Primitives (Moved from CircuitRenderer) ---
+  // --- Private Drawing Primitives ---
 
   private void drawSwitch(Graphics2D g2, Switch s, int x, int y, boolean sel) {
     if (sel) {
