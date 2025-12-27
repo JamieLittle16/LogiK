@@ -12,96 +12,64 @@ import uk.ac.cam.jml229.logic.model.Wire;
 
 public class StorageManager {
 
-  private static final int CURRENT_VERSION = 1;
+  private static final int CURRENT_VERSION = 2;
+
+  // --- File IO Wrappers ---
 
   public static void save(File file, Circuit circuit, List<Component> paletteTools) throws IOException {
+    String data = saveToString(circuit, paletteTools);
     try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
-      writer.println("LOGIK_VERSION " + CURRENT_VERSION);
-      writer.println("# Logik Simulator Save File (.lgk)");
-      writer.println("# Format: COMP [TYPE] [ID] [X] [Y] [LABEL]");
-      writer.println();
+      writer.print(data);
+    }
+  }
 
-      // 1. Save Custom Component Definitions (Blueprints)
-      Set<String> savedDefs = new HashSet<>();
+  public static LoadResult load(File file) throws IOException {
+    StringBuilder content = new StringBuilder();
+    try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        content.append(line).append("\n");
+      }
+    }
+    return loadFromString(content.toString());
+  }
 
+  // --- Core Logic (Memory) ---
+
+  public static String saveToString(Circuit circuit, List<Component> paletteTools) {
+    StringWriter sw = new StringWriter();
+    PrintWriter writer = new PrintWriter(sw);
+
+    writer.println("LOGIK_VERSION " + CURRENT_VERSION);
+    writer.println("# Logik Snapshot");
+    writer.println();
+
+    Set<String> savedDefs = new HashSet<>();
+
+    // Save Palette Custom Tools
+    if (paletteTools != null) {
       for (Component tool : paletteTools) {
         if (tool instanceof CustomComponent) {
           saveCustomDefinition(writer, (CustomComponent) tool, savedDefs);
         }
       }
-      // Check board for custom instances
-      for (Component c : circuit.getComponents()) {
-        if (c instanceof CustomComponent) {
-          saveCustomDefinition(writer, (CustomComponent) c, savedDefs);
-        }
-      }
-
-      // 2. Save Main Circuit
-      writer.println("SECTION MAIN");
-      saveCircuit(writer, circuit);
     }
-  }
 
-  private static void saveCustomDefinition(PrintWriter writer, CustomComponent cc, Set<String> savedDefs) {
-    if (savedDefs.contains(cc.getName()))
-      return;
-
-    writer.println("DEF \"" + cc.getName() + "\"");
-    saveCircuit(writer, cc.getInnerCircuit());
-    writer.println("ENDDEF");
-    writer.println();
-
-    savedDefs.add(cc.getName());
-  }
-
-  private static void saveCircuit(PrintWriter writer, Circuit circuit) {
-    Map<Component, Integer> idMap = new HashMap<>();
-    int idCounter = 0;
-
-    // Write Components
+    // Save Board Custom Instances
     for (Component c : circuit.getComponents()) {
-      int id = idCounter++;
-      idMap.put(c, id);
-
-      String type = getComponentType(c);
-      String extra = "";
-      if (c instanceof CustomComponent)
-        extra = " \"" + c.getName() + "\"";
-
-      writer.printf("COMP %s %d %d %d%s%n", type, id, c.getX(), c.getY(), extra);
-    }
-
-    // Write Wires
-    for (Wire w : circuit.getWires()) {
-      Component src = w.getSource();
-      if (src == null || !idMap.containsKey(src))
-        continue;
-
-      int srcId = idMap.get(src);
-      int srcIdx = getOutputIndex(src, w);
-
-      for (Wire.PortConnection pc : w.getDestinations()) {
-        if (!idMap.containsKey(pc.component))
-          continue;
-        int dstId = idMap.get(pc.component);
-
-        writer.printf("WIRE %d:%d %d:%d", srcId, srcIdx, dstId, pc.inputIndex);
-
-        if (!pc.waypoints.isEmpty()) {
-          writer.print(" [");
-          for (int i = 0; i < pc.waypoints.size(); i++) {
-            Point p = pc.waypoints.get(i);
-            writer.print(p.x + "," + p.y + (i < pc.waypoints.size() - 1 ? " " : ""));
-          }
-          writer.print("]");
-        }
-        writer.println();
+      if (c instanceof CustomComponent) {
+        saveCustomDefinition(writer, (CustomComponent) c, savedDefs);
       }
     }
+
+    writer.println("SECTION MAIN");
+    saveCircuit(writer, circuit);
+
+    return sw.toString();
   }
 
-  public static LoadResult load(File file) throws IOException {
-    BufferedReader reader = new BufferedReader(new FileReader(file));
+  public static LoadResult loadFromString(String data) throws IOException {
+    BufferedReader reader = new BufferedReader(new StringReader(data));
     String line;
 
     int version = 0;
@@ -124,15 +92,13 @@ public class StorageManager {
         case "LOGIK_VERSION":
           version = Integer.parseInt(parts[1]);
           if (version > CURRENT_VERSION)
-            throw new IOException("File version " + version + " is newer than supported (" + CURRENT_VERSION + ")");
+            throw new IOException("Version " + version + " not supported");
           break;
-
         case "DEF":
           currentDefName = parseString(line.substring(4));
           currentCircuit = new Circuit();
           idMap.clear();
           break;
-
         case "ENDDEF":
           if (currentDefName != null && currentCircuit != null) {
             CustomComponent proto = new CustomComponent(currentDefName, currentCircuit);
@@ -141,20 +107,17 @@ public class StorageManager {
           currentCircuit = null;
           idMap.clear();
           break;
-
         case "SECTION":
           if (parts[1].equals("MAIN")) {
             currentCircuit = mainCircuit;
             idMap.clear();
           }
           break;
-
         case "COMP":
           if (currentCircuit == null)
             continue;
-          parseComponent(parts, currentCircuit, idMap, prototypes);
+          parseComponent(parts, currentCircuit, idMap, prototypes, CURRENT_VERSION);
           break;
-
         case "WIRE":
           if (currentCircuit == null)
             continue;
@@ -162,62 +125,128 @@ public class StorageManager {
           break;
       }
     }
-
     return new LoadResult(mainCircuit, new ArrayList<>(prototypes.values()));
   }
 
-  // --- Parsing Helpers ---
+  // --- Private Helpers ---
 
-  private static void parseComponent(String[] parts, Circuit circuit, Map<Integer, Component> idMap,
-      Map<String, CustomComponent> prototypes) throws IOException {
-    String type = parts[1];
-    int id = Integer.parseInt(parts[2]);
-    int x = Integer.parseInt(parts[3]);
-    int y = Integer.parseInt(parts[4]);
+  private static void saveCustomDefinition(PrintWriter writer, CustomComponent cc, Set<String> savedDefs) {
+    if (savedDefs.contains(cc.getName()))
+      return;
+    writer.println("DEF \"" + cc.getName() + "\"");
+    saveCircuit(writer, cc.getInnerCircuit());
+    writer.println("ENDDEF");
+    writer.println();
+    savedDefs.add(cc.getName());
+  }
 
-    Component c = null;
-    switch (type) {
-      case "AND":
-        c = new AndGate("AND");
-        break;
-      case "OR":
-        c = new OrGate("OR");
-        break;
-      case "NOT":
-        c = new NotGate("NOT");
-        break;
-      case "NAND":
-        c = new NandGate("NAND");
-        break;
-      case "NOR":
-        c = new NorGate("NOR");
-        break;
-      case "XOR":
-        c = new XorGate("XOR");
-        break;
-      case "SWITCH":
-        c = new Switch("SW");
-        break;
-      case "LIGHT":
-        c = new OutputProbe("OUT");
-        break;
-      case "BUFFER":
-        c = new BufferGate("BUF");
-        break;
-      case "CUSTOM":
-        String name = parseString(parts[5]);
-        if (prototypes.containsKey(name)) {
-          c = prototypes.get(name).makeCopy();
-        } else {
-          System.err.println("Warning: Custom definition '" + name + "' not found.");
-        }
-        break;
+  private static void saveCircuit(PrintWriter writer, Circuit circuit) {
+    Map<Component, Integer> idMap = new HashMap<>();
+    int idCounter = 0;
+
+    for (Component c : circuit.getComponents()) {
+      int id = idCounter++;
+      idMap.put(c, id);
+      String type = getComponentType(c);
+      String extra = (c instanceof CustomComponent) ? " \"" + c.getName() + "\"" : "";
+      writer.printf("COMP %s %d %d %d %d%s%n", type, id, c.getX(), c.getY(), c.getRotation(), extra);
     }
 
-    if (c != null) {
-      c.setPosition(x, y);
-      circuit.addComponent(c);
-      idMap.put(id, c);
+    for (Wire w : circuit.getWires()) {
+      Component src = w.getSource();
+      if (src == null || !idMap.containsKey(src))
+        continue;
+      int srcId = idMap.get(src);
+      int srcIdx = getOutputIndex(src, w);
+
+      for (Wire.PortConnection pc : w.getDestinations()) {
+        if (!idMap.containsKey(pc.component))
+          continue;
+        int dstId = idMap.get(pc.component);
+        writer.printf("WIRE %d:%d %d:%d", srcId, srcIdx, dstId, pc.inputIndex);
+        if (!pc.waypoints.isEmpty()) {
+          writer.print(" [");
+          for (int i = 0; i < pc.waypoints.size(); i++) {
+            Point p = pc.waypoints.get(i);
+            writer.print(p.x + "," + p.y + (i < pc.waypoints.size() - 1 ? " " : ""));
+          }
+          writer.print("]");
+        }
+        writer.println();
+      }
+    }
+  }
+
+  private static void parseComponent(String[] parts, Circuit circuit, Map<Integer, Component> idMap,
+      Map<String, CustomComponent> prototypes, int fileVersion) {
+    try {
+      String type = parts[1];
+      int id = Integer.parseInt(parts[2]);
+      int x = Integer.parseInt(parts[3]);
+      int y = Integer.parseInt(parts[4]);
+
+      int rotation = 0;
+      int nameIndex = 5;
+
+      // VERSION CHECK
+      if (fileVersion >= 2) {
+        // V2 Format: ... X Y ROT [NAME]
+        if (parts.length > 5) {
+          rotation = Integer.parseInt(parts[5]);
+          nameIndex = 6;
+        }
+      } else {
+        // V1 Format: ... X Y [NAME] (No rotation)
+        nameIndex = 5;
+      }
+
+      Component c = null;
+      switch (type) {
+        case "AND":
+          c = new AndGate("AND");
+          break;
+        case "OR":
+          c = new OrGate("OR");
+          break;
+        case "NOT":
+          c = new NotGate("NOT");
+          break;
+        case "NAND":
+          c = new NandGate("NAND");
+          break;
+        case "NOR":
+          c = new NorGate("NOR");
+          break;
+        case "XOR":
+          c = new XorGate("XOR");
+          break;
+        case "SWITCH":
+          c = new Switch("SW");
+          break;
+        case "LIGHT":
+          c = new OutputProbe("OUT");
+          break;
+        case "BUFFER":
+          c = new BufferGate("BUF");
+          break;
+        case "CUSTOM":
+          if (parts.length > nameIndex) {
+            String name = parseString(parts[nameIndex]);
+            if (prototypes.containsKey(name)) {
+              c = prototypes.get(name).makeCopy();
+            }
+          }
+          break;
+      }
+
+      if (c != null) {
+        c.setPosition(x, y);
+        c.setRotation(rotation);
+        circuit.addComponent(c);
+        idMap.put(id, c);
+      }
+    } catch (Exception e) {
+      System.err.println("Error parsing component: " + Arrays.toString(parts));
     }
   }
 
@@ -237,7 +266,6 @@ public class StorageManager {
 
         if (src != null && dst != null) {
           circuit.addConnection(src, srcIdx, dst, dstIdx);
-
           if (waypointStr != null && !waypointStr.isEmpty()) {
             Wire w = src.getOutputWire(srcIdx);
             if (w != null) {
@@ -245,9 +273,7 @@ public class StorageManager {
                 if (pc.component == dst && pc.inputIndex == dstIdx) {
                   for (String pt : waypointStr.split(" ")) {
                     String[] coords = pt.split(",");
-                    pc.waypoints.add(new Point(
-                        Integer.parseInt(coords[0]),
-                        Integer.parseInt(coords[1])));
+                    pc.waypoints.add(new Point(Integer.parseInt(coords[0]), Integer.parseInt(coords[1])));
                   }
                   break;
                 }
@@ -257,8 +283,7 @@ public class StorageManager {
         }
       }
     } catch (Exception e) {
-      System.err.println("Error parsing wire: " + line);
-    }
+      /* ignore bad wires */ }
   }
 
   private static String parseString(String s) {

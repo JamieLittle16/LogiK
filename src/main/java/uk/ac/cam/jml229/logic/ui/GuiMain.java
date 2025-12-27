@@ -63,6 +63,20 @@ public class GuiMain {
       // Edit Menu
       JMenu editMenu = new JMenu("Edit");
 
+      JMenuItem undoItem = new JMenuItem("Undo");
+      undoItem.setAccelerator(
+          KeyStroke.getKeyStroke(KeyEvent.VK_Z, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
+      undoItem.addActionListener(e -> circuitPanel.undo());
+
+      JMenuItem redoItem = new JMenuItem("Redo");
+      redoItem.setAccelerator(
+          KeyStroke.getKeyStroke(KeyEvent.VK_Y, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
+      redoItem.addActionListener(e -> circuitPanel.redo());
+
+      editMenu.add(undoItem);
+      editMenu.add(redoItem);
+      editMenu.addSeparator();
+
       JMenuItem rotateItem = new JMenuItem("Rotate");
       rotateItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_R, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
@@ -169,6 +183,7 @@ public class GuiMain {
       try {
         StorageManager.LoadResult result = StorageManager.load(fc.getSelectedFile());
         circuitPanel.setCircuit(result.circuit());
+        circuitPanel.getInteraction().resetHistory(); // Correctly reset history for new file
         for (CustomComponent cc : result.customTools()) {
           palette.addCustomTool(cc);
         }

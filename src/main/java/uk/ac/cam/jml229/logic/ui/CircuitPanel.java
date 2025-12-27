@@ -91,6 +91,14 @@ public class CircuitPanel extends JPanel {
     interaction.deleteSelection();
   }
 
+  public void undo() {
+    interaction.undo();
+  }
+
+  public void redo() {
+    interaction.redo();
+  }
+
   // --- Getters/Setters ---
   public CircuitInteraction getInteraction() {
     return interaction;

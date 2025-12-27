@@ -14,6 +14,7 @@ import uk.ac.cam.jml229.logic.model.Wire;
 import uk.ac.cam.jml229.logic.ui.CircuitRenderer.Pin;
 import uk.ac.cam.jml229.logic.ui.CircuitRenderer.WireSegment;
 import uk.ac.cam.jml229.logic.ui.CircuitRenderer.WaypointRef;
+import uk.ac.cam.jml229.logic.io.HistoryManager;
 
 public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
@@ -21,6 +22,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   private final CircuitPanel panel;
   private final CircuitRenderer renderer;
   private final CircuitHitTester hitTester;
+  private final HistoryManager history = new HistoryManager();
   private ComponentPalette palette;
 
   // --- Interaction State ---
@@ -42,6 +44,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   private Point2D.Double panStartOffset;
 
   private boolean isDraggingItems = false;
+  private boolean isDragged = false;
   private Point dragStartWorldPt;
   private final Map<Component, Point> initialComponentPositions = new HashMap<>();
 
@@ -55,6 +58,9 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     this.panel = panel;
     this.renderer = renderer;
     this.hitTester = new CircuitHitTester(circuit, renderer);
+
+    // Push initial state
+    history.pushState(circuit);
   }
 
   public void setPalette(ComponentPalette palette) {
@@ -70,6 +76,25 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     selectedWaypoint = null;
     hoveredPin = null;
     connectionStartPin = null;
+  }
+
+  public void resetHistory() {
+    history.clear();
+    history.pushState(this.circuit);
+  }
+
+  public void undo() {
+    Circuit prev = history.undo(circuit);
+    if (prev != null) {
+      panel.setCircuit(prev); // This updates 'this.circuit' and repaints
+    }
+  }
+
+  public void redo() {
+    Circuit next = history.redo(circuit);
+    if (next != null) {
+      panel.setCircuit(next);
+    }
   }
 
   public Circuit getCircuit() {
@@ -130,6 +155,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       componentToPlace.rotate();
       panel.repaint();
     } else if (!selectedComponents.isEmpty()) {
+      history.pushState(circuit);
       for (Component c : selectedComponents) {
         c.rotate();
       }
@@ -139,14 +165,17 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   public void deleteSelection() {
     if (selectedWaypoint != null) {
+      history.pushState(circuit);
       selectedWaypoint.connection().waypoints.remove(selectedWaypoint.point());
       selectedWaypoint = null;
     } else if (selectedWireSegment != null) {
+      history.pushState(circuit);
       circuit.removeConnection(
           selectedWireSegment.connection().component,
           selectedWireSegment.connection().inputIndex);
       selectedWireSegment = null;
     } else if (!selectedComponents.isEmpty()) {
+      history.pushState(circuit);
       for (Component c : new ArrayList<>(selectedComponents)) {
         circuit.removeComponent(c);
       }
@@ -182,6 +211,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     currentMousePoint = getWorldPoint(e);
 
     if (componentToPlace != null) {
+      history.pushState(circuit);
       int gridX = Math.round(currentMousePoint.x / 20.0f) * 20;
       int gridY = Math.round(currentMousePoint.y / 20.0f) * 20;
       componentToPlace.setPosition(gridX, gridY);
@@ -212,6 +242,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     panel.requestFocusInWindow();
     lastMousePt = e.getPoint();
     currentMousePoint = getWorldPoint(e);
+    isDragged = false;
 
     // Panning
     boolean isLaptopPan = SwingUtilities.isLeftMouseButton(e) && e.isAltDown();
@@ -256,6 +287,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     if (connectionStartPin != null) {
       if (clickedPin != null) {
         if (connectionStartPin.isInput() != clickedPin.isInput()) {
+          history.pushState(circuit);
           Pin sourcePin = connectionStartPin.isInput() ? clickedPin : connectionStartPin;
           Pin destPin = connectionStartPin.isInput() ? connectionStartPin : clickedPin;
           circuit.addConnection(sourcePin.component(), sourcePin.index(), destPin.component(), destPin.index());
@@ -295,6 +327,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
           clickedWire.wire() == selectedWireSegment.wire() &&
           clickedWire.connection() == selectedWireSegment.connection()) {
 
+        history.pushState(circuit);
         int idx = hitTester.getWaypointInsertionIndex(clickedWire, worldPt);
         clickedWire.connection().waypoints.add(idx, worldPt);
         selectedWaypoint = new WaypointRef(clickedWire.connection(), worldPt);
@@ -343,6 +376,10 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     }
 
     if (selectedWaypoint != null) {
+      if (!isDragged) {
+        history.pushState(circuit);
+        isDragged = true;
+      }
       Point pt = selectedWaypoint.point();
       pt.setLocation(getWorldPoint(e));
 
@@ -389,6 +426,10 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     }
 
     if (isDraggingItems) {
+      if (!isDragged) {
+        history.pushState(circuit);
+        isDragged = true;
+      }
       Point currentWorld = getWorldPoint(e);
       int dx = currentWorld.x - dragStartWorldPt.x;
       int dy = currentWorld.y - dragStartWorldPt.y;
@@ -456,6 +497,13 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
           c.rotate();
         }
         panel.repaint();
+      }
+    }
+    if (e.isControlDown()) {
+      if (e.getKeyCode() == KeyEvent.VK_Z) {
+        undo();
+      } else if (e.getKeyCode() == KeyEvent.VK_Y) {
+        redo();
       }
     }
   }

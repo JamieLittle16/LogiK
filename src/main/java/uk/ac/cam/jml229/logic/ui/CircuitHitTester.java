@@ -93,7 +93,7 @@ public class CircuitHitTester {
     for (int i = comps.size() - 1; i >= 0; i--) {
       Component c = comps.get(i);
 
-      // Get the precise, rotated bounds from the renderer/painter
+      // Get the rotated bounds from the renderer/painter
       Rectangle bounds = renderer.getComponentBounds(c);
 
       if (bounds.contains(p)) {
