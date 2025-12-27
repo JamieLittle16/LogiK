@@ -10,7 +10,7 @@ import java.util.List;
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.model.Circuit;
-import uk.ac.cam.jml229.logic.model.Wire; // Imported properly now!
+import uk.ac.cam.jml229.logic.model.Wire;
 import uk.ac.cam.jml229.logic.ui.CircuitRenderer.Pin;
 import uk.ac.cam.jml229.logic.ui.CircuitRenderer.WireSegment;
 
@@ -24,24 +24,20 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   // --- Interaction State ---
   private final List<Component> selectedComponents = new ArrayList<>();
   private WireSegment selectedWireSegment = null;
-
-  // Hover State
   private Pin hoveredPin = null;
   private WireSegment hoveredWire = null;
-
-  // Wiring State
   private Pin connectionStartPin = null;
   private Point currentMousePoint = null;
-
-  // Selection Box
   private Rectangle selectionRect;
   private Point selectionStartPt;
   private Point lastMousePt;
   private boolean isDraggingItems = false;
   private boolean isMouseInsidePanel = false;
-
-  // Ghost component
   private Component componentToPlace = null;
+
+  // --- Waypoint Editing State ---
+  private Point draggedWaypoint = null;
+  private List<Point> draggedWaypointList = null;
 
   public CircuitInteraction(Circuit circuit, CircuitPanel panel, CircuitRenderer renderer) {
     this.circuit = circuit;
@@ -163,6 +159,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     panel.requestFocusInWindow();
     lastMousePt = e.getPoint();
     currentMousePoint = e.getPoint();
+    draggedWaypoint = null;
 
     // Right Click
     if (SwingUtilities.isRightMouseButton(e)) {
@@ -179,6 +176,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     // Left Click - Component Placement
     if (componentToPlace != null) {
       circuit.addComponent(componentToPlace);
+      // Stamp Mode: Ctrl + Click keeps placing
       if (e.isControlDown()) {
         componentToPlace = componentToPlace.makeCopy();
       } else {
@@ -190,23 +188,15 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
     Pin clickedPin = getPinAt(e.getPoint());
 
+    // Wiring Phase 2: Finishing a wire connection
     if (connectionStartPin != null) {
       if (clickedPin != null) {
         // We need exactly one Input and one Output.
-        // If we clicked the same type (e.g. Input -> Input), it's invalid.
         if (connectionStartPin.isInput() != clickedPin.isInput()) {
-
-          // Identify which is Source (Output) and which is Dest (Input)
           Pin sourcePin = connectionStartPin.isInput() ? clickedPin : connectionStartPin;
           Pin destPin = connectionStartPin.isInput() ? connectionStartPin : clickedPin;
-
-          circuit.addConnection(
-              sourcePin.component(),
-              sourcePin.index(),
-              destPin.component(),
-              destPin.index());
+          circuit.addConnection(sourcePin.component(), sourcePin.index(), destPin.component(), destPin.index());
         }
-        // Whether valid or invalid pair, we stop wiring now.
         connectionStartPin = null;
       } else {
         // Clicked empty space -> Cancel wiring
@@ -216,8 +206,8 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       return;
     }
 
+    // Wiring Phase 1: Starting a wire connection
     if (clickedPin != null) {
-      // Allow starting from ANY pin (Input or Output)
       connectionStartPin = clickedPin;
       selectedComponents.clear();
       selectedWireSegment = null;
@@ -225,17 +215,46 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       return;
     }
 
-    // Selection Logic
+    // --- WAYPOINT / WIRE LOGIC ---
+
+    // 1. Check if clicking an EXISTING waypoint on the SELECTED wire
+    if (selectedWireSegment != null) {
+      Wire.PortConnection pc = selectedWireSegment.connection;
+      for (Point pt : pc.waypoints) {
+        if (e.getPoint().distance(pt) < 6) { // 6px hit box
+          draggedWaypoint = pt;
+          draggedWaypointList = pc.waypoints;
+          panel.repaint();
+          return;
+        }
+      }
+    }
+
+    // 2. Check if clicking on a Wire Segment (to select it OR split it)
     WireSegment clickedWire = getWireAt(e.getPoint());
     if (clickedWire != null) {
-      selectedWireSegment = clickedWire;
-      selectedComponents.clear();
+      // If clicking the ALREADY selected wire -> Add new waypoint!
+      if (selectedWireSegment != null &&
+          clickedWire.wire == selectedWireSegment.wire &&
+          clickedWire.connection == selectedWireSegment.connection) {
+
+        Point newPt = e.getPoint();
+        insertWaypoint(clickedWire.connection, newPt);
+        draggedWaypoint = newPt; // Immediately start dragging it
+        draggedWaypointList = clickedWire.connection.waypoints;
+      } else {
+        // Just selecting a new wire
+        selectedWireSegment = clickedWire;
+        selectedComponents.clear();
+      }
       panel.repaint();
       return;
     } else {
       selectedWireSegment = null;
     }
 
+    // --- COMPONENT SELECTION LOGIC ---
+    // (Removed the duplicate definition of clickedWire here)
     Component clickedComp = getLogicComponentAt(e.getPoint());
     if (clickedComp != null) {
       handleComponentSelection(e, clickedComp);
@@ -249,6 +268,34 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   public void mouseDragged(MouseEvent e) {
     if (connectionStartPin != null) {
       currentMousePoint = e.getPoint();
+      panel.repaint();
+      return;
+    }
+
+    // Move Waypoint
+    if (draggedWaypoint != null) {
+      draggedWaypoint.setLocation(e.getPoint());
+
+      // Snap to adjacent waypoints to make straight lines easier
+      int index = draggedWaypointList.indexOf(draggedWaypoint);
+      if (index != -1) {
+        Point prev = (index > 0) ? draggedWaypointList.get(index - 1) : null;
+        Point next = (index < draggedWaypointList.size() - 1) ? draggedWaypointList.get(index + 1) : null;
+
+        int snapDist = 15;
+        if (prev != null) {
+          if (Math.abs(draggedWaypoint.x - prev.x) < snapDist)
+            draggedWaypoint.x = prev.x;
+          if (Math.abs(draggedWaypoint.y - prev.y) < snapDist)
+            draggedWaypoint.y = prev.y;
+        }
+        if (next != null) {
+          if (Math.abs(draggedWaypoint.x - next.x) < snapDist)
+            draggedWaypoint.x = next.x;
+          if (Math.abs(draggedWaypoint.y - next.y) < snapDist)
+            draggedWaypoint.y = next.y;
+        }
+      }
       panel.repaint();
       return;
     }
@@ -272,6 +319,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   @Override
   public void mouseReleased(MouseEvent e) {
+    draggedWaypoint = null;
     if (selectionRect != null) {
       finalizeSelectionBox();
     }
@@ -317,22 +365,18 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   private void showContextMenu(int x, int y) {
     JPopupMenu menu = new JPopupMenu();
-
     JMenuItem createItem = new JMenuItem("Create Custom Component");
     createItem.addActionListener(e -> createCustomComponentFromSelection());
     menu.add(createItem);
-
     JMenuItem deleteItem = new JMenuItem("Delete Selection");
     deleteItem.addActionListener(e -> deleteSelection());
     menu.add(deleteItem);
-
     menu.show(panel, x, y);
   }
 
   private void createCustomComponentFromSelection() {
     if (selectedComponents.isEmpty())
       return;
-
     String name = JOptionPane.showInputDialog(panel, "Enter Name (max 5 chars):", "New Component",
         JOptionPane.PLAIN_MESSAGE);
     if (name == null || name.trim().isEmpty())
@@ -349,13 +393,10 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       innerCircuit.addComponent(clone);
       oldToNew.put(original, clone);
     }
-
-    // Rebuild Internal Wires using clean imports
     for (Wire w : circuit.getWires()) {
       Component source = w.getSource();
       if (source == null || !selectedComponents.contains(source))
         continue;
-
       int sourceIndex = -1;
       for (int i = 0; i < source.getOutputCount(); i++) {
         if (source.getOutputWire(i) == w) {
@@ -365,7 +406,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       }
       if (sourceIndex == -1)
         continue;
-
       for (Wire.PortConnection pc : w.getDestinations()) {
         if (selectedComponents.contains(pc.component)) {
           Component newSource = oldToNew.get(source);
@@ -374,12 +414,9 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         }
       }
     }
-
     CustomComponent newTool = new CustomComponent(name, innerCircuit);
-
-    if (palette != null) {
+    if (palette != null)
       palette.addCustomTool(newTool);
-    }
   }
 
   // ==========================================
@@ -435,7 +472,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         if (p.distance(outLoc) <= threshold)
           return new Pin(c, i, false, outLoc);
       }
-
       int inputCount = renderer.getInputCount(c);
       for (int i = 0; i < inputCount; i++) {
         Point inLoc = renderer.getPinLocation(c, true, i);
@@ -446,13 +482,16 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     return null;
   }
 
+  private void insertWaypoint(Wire.PortConnection pc, Point clickPt) {
+    pc.waypoints.add(clickPt);
+  }
+
   private WireSegment getWireAt(Point p) {
     int hitThreshold = 5;
     for (Wire w : circuit.getWires()) {
       Component src = w.getSource();
       if (src == null)
         continue;
-
       int outputIndex = 0;
       for (int i = 0; i < src.getOutputCount(); i++) {
         if (src.getOutputWire(i) == w) {
@@ -461,11 +500,13 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         }
       }
       Point p1 = renderer.getPinLocation(src, false, outputIndex);
-
       for (Wire.PortConnection pc : w.getDestinations()) {
         Point p2 = renderer.getPinLocation(pc.component, true, pc.inputIndex);
-        CubicCurve2D.Double curve = renderer.createWireCurve(p1.x, p1.y, p2.x, p2.y);
-        Shape strokedShape = new BasicStroke(hitThreshold).createStrokedShape(curve);
+
+        // Use the renderer's shape logic for accurate hit testing
+        Shape path = renderer.createWireShape(p1, p2, pc.waypoints);
+        Shape strokedShape = new BasicStroke(hitThreshold).createStrokedShape(path);
+
         if (strokedShape.contains(p))
           return new WireSegment(w, pc);
       }
@@ -477,8 +518,15 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     List<Component> comps = circuit.getComponents();
     for (int i = comps.size() - 1; i >= 0; i--) {
       Component c = comps.get(i);
-      if (p.x >= c.getX() && p.x <= c.getX() + 40 &&
-          p.y >= c.getY() && p.y <= c.getY() + 40)
+
+      // FIXED: Use dynamic height from renderer to match drawn box size
+      int inputCount = renderer.getInputCount(c);
+      int outputCount = c.getOutputCount();
+      int maxPins = Math.max(inputCount, outputCount);
+      int h = Math.max(40, maxPins * 20);
+      int w = 50;
+
+      if (p.x >= c.getX() && p.x <= c.getX() + w && p.y >= c.getY() && p.y <= c.getY() + h)
         return c;
     }
     return null;

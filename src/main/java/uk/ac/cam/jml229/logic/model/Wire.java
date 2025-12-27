@@ -1,12 +1,14 @@
 package uk.ac.cam.jml229.logic.model;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.awt.Point;
 import uk.ac.cam.jml229.logic.components.Component;
 
 public class Wire {
   private boolean signal;
   private Component source;
-  private ArrayList<PortConnection> destinations = new ArrayList<>();
+  private List<PortConnection> destinations = new ArrayList<>();
 
   public Wire(Component source) {
     this.source = source;
@@ -15,6 +17,7 @@ public class Wire {
   public static class PortConnection {
     public Component component;
     public int inputIndex;
+    public final List<Point> waypoints = new ArrayList<>();
 
     PortConnection(Component c, int i) {
       component = c;
@@ -54,7 +57,7 @@ public class Wire {
     destinations.removeIf(connection -> connection.component == c && connection.inputIndex == inputIndex);
   }
 
-  public ArrayList<PortConnection> getDestinations() {
+  public List<PortConnection> getDestinations() {
     return destinations;
   }
 }

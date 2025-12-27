@@ -14,6 +14,7 @@ public class CircuitRenderer {
   // --- Styling Constants ---
   private static final int GRID_SIZE = 20;
   public static final int PIN_SIZE = 8;
+  public static final int HANDLE_SIZE = 6; // Size of waypoint drag handles
 
   private static final Color GRID_COLOR = new Color(235, 235, 235);
   private static final Color SELECTION_BORDER = new Color(0, 180, 255);
@@ -117,17 +118,28 @@ public class CircuitRenderer {
         boolean isSelected = (selectedWire != null && selectedWire.wire == w && selectedWire.connection == pc);
         boolean isHovered = (hoveredWire != null && hoveredWire.wire == w && hoveredWire.connection == pc);
 
-        CubicCurve2D.Double curve = createWireCurve(p1.x, p1.y, p2.x, p2.y);
+        Shape path = createWireShape(p1, p2, pc.waypoints);
 
         if (isSelected || isHovered) {
           g2.setColor(isSelected ? SELECTION_BORDER : HOVER_COLOR);
           g2.setStroke(new BasicStroke(6));
-          g2.draw(curve);
+          g2.draw(path);
           g2.setStroke(new BasicStroke(3));
         }
 
+        // Draw Waypoint Handles if selected
+        if (isSelected) {
+          g2.setColor(Color.WHITE);
+          for (Point pt : pc.waypoints) {
+            g2.fillRect(pt.x - 3, pt.y - 3, 6, 6);
+            g2.setColor(SELECTION_BORDER);
+            g2.drawRect(pt.x - 3, pt.y - 3, 6, 6);
+            g2.setColor(Color.WHITE); // Reset for next fill
+          }
+        }
+
         g2.setColor(w.getSignal() ? WIRE_ON : WIRE_OFF);
-        g2.draw(curve);
+        g2.draw(path);
       }
     }
   }
@@ -150,6 +162,26 @@ public class CircuitRenderer {
       g2.setStroke(new BasicStroke(1, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[] { 9 }, 0));
       g2.draw(rect);
     }
+  }
+
+  // --- Helper: Wire Shape Generator ---
+  // Returns a GeneralPath connecting Start -> Waypoints -> End
+  public Shape createWireShape(Point start, Point end, List<Point> waypoints) {
+    GeneralPath path = new GeneralPath();
+    path.moveTo(start.x, start.y);
+
+    if (waypoints.isEmpty()) {
+      // Default Curve behavior if no waypoints
+      double ctrlDist = Math.max(20, Math.abs(end.x - start.x) * 0.5);
+      path.curveTo(start.x + ctrlDist, start.y, end.x - ctrlDist, end.y, end.x, end.y);
+    } else {
+      // Linear segments through waypoints
+      for (Point p : waypoints) {
+        path.lineTo(p.x, p.y);
+      }
+      path.lineTo(end.x, end.y);
+    }
+    return path;
   }
 
   // --- Component Drawing ---
