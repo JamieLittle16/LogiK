@@ -4,6 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.AffineTransform;
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
 
@@ -11,6 +12,7 @@ public class ComponentPalette extends JPanel {
 
   private final CircuitInteraction interaction;
   private final CircuitRenderer renderer;
+  private boolean hasCustomHeading = false; // Track if we've added the header
 
   public ComponentPalette(CircuitInteraction interaction, CircuitRenderer renderer) {
     this.interaction = interaction;
@@ -48,12 +50,14 @@ public class ComponentPalette extends JPanel {
    * Adds a newly created Custom Component to the sidebar.
    */
   public void addCustomTool(Component prototype) {
-    // Add a separator/label if it's the first custom tool
-    // if (this.getComponentCount() ... ) addLabel("User Chips");
+    // Add "Custom IC" heading if it's the first one
+    if (!hasCustomHeading) {
+      addLabel("Custom IC");
+      hasCustomHeading = true;
+    }
 
     addTool(prototype);
 
-    // Refresh the UI to show the new button
     revalidate();
     repaint();
   }
@@ -70,9 +74,9 @@ public class ComponentPalette extends JPanel {
       protected void paintComponent(Graphics g) {
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        // FIX: Standard AA matches renderer
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
+        // Draw Button Background
         g2.setColor(getBackground());
         g2.fillRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 15, 15);
 
@@ -83,16 +87,34 @@ public class ComponentPalette extends JPanel {
         }
         g2.drawRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 15, 15);
 
-        int offsetX = (getWidth() - 50) / 2;
-        int offsetY = (getHeight() - 40) / 2;
+        // --- PREVIEW SCALING LOGIC ---
+        // Calculate the real size of the component
+        int inputs = prototype.getInputCount();
+        int outputs = prototype.getOutputCount();
+        int maxPins = Math.max(inputs, outputs);
+        int realHeight = Math.max(40, maxPins * 20); // Matches Renderer logic
+        int realWidth = 50; // Standard width
 
-        int oldX = prototype.getX();
-        int oldY = prototype.getY();
-        prototype.setPosition(offsetX, offsetY);
+        // Calculate Scale Factor to fit inside button (with 10px padding)
+        double availableH = getHeight() - 20;
+        double availableW = getWidth() - 20;
 
+        double scale = 1.0;
+        if (realHeight > availableH || realWidth > availableW) {
+          scale = Math.min(availableH / realHeight, availableW / realWidth);
+        }
+
+        // Apply Scale and Center
+        AffineTransform oldTx = g2.getTransform();
+
+        g2.translate(getWidth() / 2, getHeight() / 2); // Move 0,0 to center
+        g2.scale(scale, scale); // Scale
+        g2.translate(-realWidth / 2 - prototype.getX(), -realHeight / 2 - prototype.getY()); // Center component
+
+        // Draw
         renderer.drawComponentBody(g2, prototype, false, false);
 
-        prototype.setPosition(oldX, oldY);
+        g2.setTransform(oldTx); // Restore
       }
     };
 
@@ -144,9 +166,12 @@ public class ComponentPalette extends JPanel {
       return new NorGate("NOR");
     if (prototype instanceof BufferGate)
       return new BufferGate("BUF");
+
+    // Generic fallback for Custom Components
     if (prototype instanceof CustomComponent) {
       return prototype.makeCopy();
     }
+
     return null;
   }
 }
