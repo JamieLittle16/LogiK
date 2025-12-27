@@ -25,14 +25,12 @@ public class CircuitHitTester {
   public Pin findPinAt(Point p) {
     int threshold = CircuitRenderer.PIN_SIZE + 4;
     for (Component c : circuit.getComponents()) {
-      // Check Outputs
       int outCount = c.getOutputCount();
       for (int i = 0; i < outCount; i++) {
         Point outLoc = renderer.getPinLocation(c, false, i);
         if (p.distance(outLoc) <= threshold)
           return new Pin(c, i, false, outLoc);
       }
-      // Check Inputs
       int inputCount = renderer.getInputCount(c);
       for (int i = 0; i < inputCount; i++) {
         Point inLoc = renderer.getPinLocation(c, true, i);
@@ -64,7 +62,6 @@ public class CircuitHitTester {
       if (src == null)
         continue;
 
-      // Find Source Location
       int outputIndex = 0;
       for (int i = 0; i < src.getOutputCount(); i++) {
         if (src.getOutputWire(i) == w) {
@@ -74,7 +71,6 @@ public class CircuitHitTester {
       }
       Point p1 = renderer.getPinLocation(src, false, outputIndex);
 
-      // Check all destination paths
       for (Wire.PortConnection pc : w.getDestinations()) {
         Point p2 = renderer.getPinLocation(pc.component, true, pc.inputIndex);
         Shape path = renderer.createWireShape(p1, p2, pc.waypoints);
@@ -88,7 +84,6 @@ public class CircuitHitTester {
   }
 
   public Component findComponentAt(Point p) {
-    // Reverse order to select top-most component first
     List<Component> comps = circuit.getComponents();
     for (int i = comps.size() - 1; i >= 0; i--) {
       Component c = comps.get(i);
@@ -104,10 +99,6 @@ public class CircuitHitTester {
     return null;
   }
 
-  /**
-   * Calculates the best index to insert a new waypoint into an existing wire
-   * segment.
-   */
   public int getWaypointInsertionIndex(WireSegment ws, Point clickPt) {
     Wire.PortConnection pc = ws.connection();
     Wire w = ws.wire();
@@ -121,13 +112,11 @@ public class CircuitHitTester {
     Point start = renderer.getPinLocation(src, false, srcIdx);
     Point end = renderer.getPinLocation(pc.component, true, pc.inputIndex);
 
-    // Build full path for geometry check
     List<Point> fullPath = new ArrayList<>();
     fullPath.add(start);
     fullPath.addAll(waypoints);
     fullPath.add(end);
 
-    // Check which Bezier segment was clicked
     for (int i = 0; i < fullPath.size() - 1; i++) {
       Point p1 = fullPath.get(i);
       Point p2 = fullPath.get(i + 1);
@@ -139,9 +128,9 @@ public class CircuitHitTester {
 
       Shape stroked = new BasicStroke(7).createStrokedShape(segmentPath);
       if (stroked.contains(clickPt)) {
-        return i; // Insert at this index
+        return i;
       }
     }
-    return waypoints.size(); // Fallback to append
+    return waypoints.size();
   }
 }

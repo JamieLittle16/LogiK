@@ -50,7 +50,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     this.circuit = circuit;
     this.panel = panel;
     this.renderer = renderer;
-    this.hitTester = new CircuitHitTester(circuit, renderer); // Initialize helper
+    this.hitTester = new CircuitHitTester(circuit, renderer);
   }
 
   public void setPalette(ComponentPalette palette) {
@@ -148,7 +148,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   public void mouseMoved(MouseEvent e) {
     currentMousePoint = getWorldPoint(e);
 
-    // 1. Update Ghost Component
+    // Update Ghost Component
     if (componentToPlace != null) {
       int gridX = Math.round(currentMousePoint.x / 20.0f) * 20;
       int gridY = Math.round(currentMousePoint.y / 20.0f) * 20;
@@ -157,7 +157,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       return;
     }
 
-    // 2. Update Hover State
+    // Update Hover State
     Point worldPt = getWorldPoint(e);
 
     hoveredPin = hitTester.findPinAt(worldPt);
@@ -475,10 +475,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     if (palette != null)
       palette.addCustomTool(newTool);
   }
-
-  // ==========================================
-  // HELPER METHODS
-  // ==========================================
 
   private void handleComponentSelection(MouseEvent e, Component clickedComp) {
     if (e.isShiftDown()) {
