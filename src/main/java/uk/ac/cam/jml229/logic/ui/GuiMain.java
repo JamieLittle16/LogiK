@@ -36,7 +36,7 @@ public class GuiMain {
   private static long lastClockTick = 0;
   private static int clockDelayMs = 500; // Default 2Hz (500ms)
 
-  // NEW: Controls how fast signals travel (Gates updated per frame)
+  // Controls how fast signals travel (Gates updated per frame)
   private static int logicStepsPerFrame = 1000;
 
   public static void main(String[] args) {
@@ -59,9 +59,6 @@ public class GuiMain {
       // --- Simulation Loop (60Hz / 16ms) ---
       simulationTimer = new javax.swing.Timer(16, e -> {
         // 1. Process Logic Gates (Event Queue)
-        // We run 'logicStepsPerFrame' updates per frame.
-        // Lower values = Slow Motion (visible propagation)
-        // Higher values = Instant (standard simulation)
         Simulator.run(logicStepsPerFrame);
 
         // 2. Process Clock Components (Frequency Control)
@@ -222,8 +219,26 @@ public class GuiMain {
       addSpeedItem(clockSpeedMenu, clockGroup, "2 Hz (Default)", 500, true);
       addSpeedItem(clockSpeedMenu, clockGroup, "5 Hz", 200, false);
       addSpeedItem(clockSpeedMenu, clockGroup, "10 Hz", 100, false);
-      addSpeedItem(clockSpeedMenu, clockGroup, "20 Hz", 50, false);
-      addSpeedItem(clockSpeedMenu, clockGroup, "50 Hz (Fast)", 20, false);
+      addSpeedItem(clockSpeedMenu, clockGroup, "50 Hz", 20, false);
+
+      // Custom Clock Option
+      JRadioButtonMenuItem customClockItem = new JRadioButtonMenuItem("Custom...");
+      customClockItem.addActionListener(e -> {
+        String input = JOptionPane.showInputDialog(frame, "Enter Clock Frequency (Hz):", "Custom Clock Speed",
+            JOptionPane.QUESTION_MESSAGE);
+        if (input != null) {
+          try {
+            double hz = Double.parseDouble(input);
+            if (hz > 0) {
+              clockDelayMs = (int) (1000.0 / hz);
+            }
+          } catch (NumberFormatException ex) {
+            // Ignore invalid input
+          }
+        }
+      });
+      clockGroup.add(customClockItem);
+      clockSpeedMenu.add(customClockItem);
 
       // 2. Logic Speed Submenu (Propagation Delay)
       JMenu logicSpeedMenu = new JMenu("Logic Speed (Propagation)");
@@ -250,12 +265,31 @@ public class GuiMain {
       logicGroup.add(slowItem);
       logicSpeedMenu.add(slowItem);
 
+      // Custom Logic Speed Option
+      JRadioButtonMenuItem customLogicItem = new JRadioButtonMenuItem("Custom...");
+      customLogicItem.addActionListener(e -> {
+        String input = JOptionPane.showInputDialog(frame, "Enter Logic Updates per Frame:", "Custom Logic Speed",
+            JOptionPane.QUESTION_MESSAGE);
+        if (input != null) {
+          try {
+            int steps = Integer.parseInt(input);
+            if (steps > 0) {
+              logicStepsPerFrame = steps;
+            }
+          } catch (NumberFormatException ex) {
+            // Ignore invalid input
+          }
+        }
+      });
+      logicGroup.add(customLogicItem);
+      logicSpeedMenu.add(customLogicItem);
+
       simMenu.add(startItem);
       simMenu.add(stopItem);
       simMenu.add(stepItem);
       simMenu.addSeparator();
       simMenu.add(clockSpeedMenu);
-      simMenu.add(logicSpeedMenu); // ADDED
+      simMenu.add(logicSpeedMenu);
 
       menuBar.add(fileMenu);
       menuBar.add(editMenu);
