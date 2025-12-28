@@ -225,7 +225,20 @@ public class ComponentPainter {
     FontMetrics fm = g2.getFontMetrics();
     String name = c.getName();
     int tw = fm.stringWidth(name);
-    g2.drawString(name, x + (dim.width - tw) / 2, y - 5);
+
+    int tx = x + (dim.width - tw) / 2;
+    int ty = y - 5;
+
+    // --- Counter-rotate text if upside down ---
+    if (c.getRotation() == 2) { // 180 degrees
+      AffineTransform saved = g2.getTransform();
+      // Rotate 180 around the center of the text
+      g2.rotate(Math.PI, x + dim.width / 2.0, ty - fm.getAscent() / 2.0);
+      g2.drawString(name, tx, ty);
+      g2.setTransform(saved);
+    } else {
+      g2.drawString(name, tx, ty);
+    }
   }
 
   private void drawGenericBox(Graphics2D g2, Component c, int x, int y, boolean sel) {
@@ -251,7 +264,22 @@ public class ComponentPainter {
       name = name.substring(0, Math.min(name.length(), 5)) + "..";
     }
     int textWidth = fm.stringWidth(name);
-    g2.drawString(name, x + (d.width - textWidth) / 2, y + 12);
+
+    int tx = x + (d.width - textWidth) / 2;
+    int ty = y + 12;
+
+    // --- Counter-rotate text inside box ---
+    if (c.getRotation() == 2) {
+      AffineTransform saved = g2.getTransform();
+      // Rotate 180 around text center
+      double centerX = tx + textWidth / 2.0;
+      double centerY = ty - fm.getAscent() / 2.0;
+      g2.rotate(Math.PI, centerX, centerY);
+      g2.drawString(name, tx, ty);
+      g2.setTransform(saved);
+    } else {
+      g2.drawString(name, tx, ty);
+    }
   }
 
   private void drawSwitch(Graphics2D g2, Switch s, int x, int y, boolean sel) {
