@@ -9,7 +9,7 @@ import java.awt.geom.Point2D;
 
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
-import uk.ac.cam.jml229.logic.components.io.Switch; // Import Switch specifically
+import uk.ac.cam.jml229.logic.components.io.Switch;
 import uk.ac.cam.jml229.logic.core.Circuit;
 import uk.ac.cam.jml229.logic.core.Wire;
 import uk.ac.cam.jml229.logic.ui.panels.CircuitPanel;
@@ -48,8 +48,11 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   private Rectangle selectionRect;
   private Point selectionStartPt;
 
+  // --- Prevention Flags ---
   private Point lastMousePt;
   private boolean hasMovedSincePress = false;
+  private boolean justPlaced = false;
+  // ------------------------
 
   // Smooth Dragging State
   private boolean isPanning = false;
@@ -320,7 +323,9 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   public void mousePressed(MouseEvent e) {
     panel.requestFocusInWindow();
     lastMousePt = e.getPoint();
-    hasMovedSincePress = false; // Reset movement flag
+    hasMovedSincePress = false; // Reset drag flag
+    justPlaced = false; // Reset placement flag
+
     currentMousePoint = getWorldPoint(e);
     isDragged = false;
 
@@ -350,8 +355,12 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
     // Place Component
     if (componentToPlace != null) {
-      history.pushState(circuit); // Save state BEFORE placement
+      history.pushState(circuit);
       circuit.addComponent(componentToPlace);
+
+      // FIX 1: Set flag so mouseClicked doesn't immediately toggle the new switch
+      justPlaced = true;
+
       if (e.isControlDown()) {
         componentToPlace = componentToPlace.makeCopy();
       } else {
@@ -413,9 +422,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
           }
         }
       }
-
-      // Clicked empty space while wiring -> Cancel or Place Waypoint?
-      // Currently defaulting to cancel wiring if clicking empty space
       connectionStartPin = null;
       panel.repaint();
       return;
@@ -491,7 +497,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   @Override
   public void mouseDragged(MouseEvent e) {
-    hasMovedSincePress = true;
+    hasMovedSincePress = true; // FIX 2: We moved, so this is definitely a drag, not a click
 
     if (isPanning) {
       int dx = e.getX() - panStartScreenPt.x;
@@ -600,7 +606,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       panel.setCursor(Cursor.getDefaultCursor());
     }
     if (selectionRect != null) {
-      finaliseSelectionBox();
+      finalizeSelectionBox();
     }
     isDraggingItems = false;
     initialComponentPositions.clear();
@@ -609,11 +615,20 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   @Override
   public void mouseClicked(MouseEvent e) {
-    // --- FIX 2: Prevent Interaction if we dragged or are wiring ---
-    if (hasMovedSincePress)
+    // If we moved significantly, ignore this 'click' (it was a drag)
+    if (hasMovedSincePress) {
+      hasMovedSincePress = false;
       return;
+    }
+
+    // Check: If we just placed this item, ignore this 'click'
+    if (justPlaced) {
+      justPlaced = false;
+      return;
+    }
+
     if (connectionStartPin != null)
-      return; // Don't toggle switch if trying to wire
+      return;
 
     if (componentToPlace == null) {
       Point worldPt = getWorldPoint(e);
@@ -624,9 +639,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
       Component c = hitTester.findComponentAt(worldPt);
       if (c != null) {
-        // 1. Double Click -> Rename
-        // --- FIX 1: Don't allow double-click rename on Switches (Interferes with fast
-        // toggling)
+        // Double Click -> Rename (Except Switches)
         if (e.getClickCount() == 2 && !(c instanceof Switch)) {
           String newName = JOptionPane.showInputDialog(panel, "Rename Component:", c.getName());
           if (newName != null && !newName.trim().isEmpty()) {
@@ -638,7 +651,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
           return;
         }
 
-        // 2. Single Click -> Toggle Switch
+        // Single Click -> Toggle Switch
         if (c instanceof Switch) {
           ((Switch) c).toggle(!((Switch) c).getState());
           panel.repaint();
@@ -710,7 +723,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     createItem.addActionListener(e -> createCustomComponentFromSelection());
     menu.add(createItem);
 
-    // Rename Option
     JMenuItem renameItem = new JMenuItem("Rename");
     renameItem.addActionListener(e -> {
       if (!selectedComponents.isEmpty()) {
@@ -732,7 +744,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     menu.show(panel, x, y);
   }
 
-  // Helpers
   private void createCustomComponentFromSelection() {
     if (selectedComponents.isEmpty())
       return;
@@ -806,7 +817,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     selectionRect.setBounds(x, y, w, h);
   }
 
-  private void finaliseSelectionBox() {
+  private void finalizeSelectionBox() {
     for (Component c : circuit.getComponents()) {
       if (selectionRect.contains(c.getX() + 20, c.getY() + 20)) {
         if (!selectedComponents.contains(c))
