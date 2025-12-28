@@ -35,9 +35,12 @@ public class Wire {
       return;
     }
     signal = newSignal;
-    // Updates all the gates connected
+
     for (PortConnection pc : destinations) {
-      pc.component.setInput(pc.inputIndex, signal);
+      // Capture the state and the target in a lambda
+      Simulator.enqueue(() -> {
+        pc.component.setInput(pc.inputIndex, signal);
+      });
     }
   }
 

@@ -14,6 +14,7 @@ import java.util.List;
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.components.CustomComponent;
 import uk.ac.cam.jml229.logic.io.StorageManager;
+import uk.ac.cam.jml229.logic.model.Simulator;
 
 public class GuiMain {
 
@@ -30,8 +31,13 @@ public class GuiMain {
   private static JMenuBar menuBar;
   private static JSplitPane splitPane;
 
-  // Simulation Timer
+  // --- Simulation State ---
   private static javax.swing.Timer simulationTimer;
+  private static long lastClockTick = 0;
+  private static int clockDelayMs = 500; // Default 2Hz (500ms)
+
+  // NEW: Controls how fast signals travel (Gates updated per frame)
+  private static int logicStepsPerFrame = 1000;
 
   public static void main(String[] args) {
     System.setProperty("sun.java2d.opengl", "true");
@@ -50,10 +56,22 @@ public class GuiMain {
       palette = new ComponentPalette(interaction, renderer);
       interaction.setPalette(palette);
 
-      // --- Simulation Timer ---
-      // Default to 2Hz (500ms)
-      simulationTimer = new javax.swing.Timer(500, e -> {
-        circuitPanel.getCircuit().tick();
+      // --- Simulation Loop (60Hz / 16ms) ---
+      simulationTimer = new javax.swing.Timer(16, e -> {
+        // 1. Process Logic Gates (Event Queue)
+        // We run 'logicStepsPerFrame' updates per frame.
+        // Lower values = Slow Motion (visible propagation)
+        // Higher values = Instant (standard simulation)
+        Simulator.run(logicStepsPerFrame);
+
+        // 2. Process Clock Components (Frequency Control)
+        long now = System.currentTimeMillis();
+        if (now - lastClockTick >= clockDelayMs) {
+          circuitPanel.getCircuit().tick();
+          lastClockTick = now;
+        }
+
+        // 3. Repaint UI
         circuitPanel.repaint();
       });
 
@@ -78,7 +96,6 @@ public class GuiMain {
       // Edit Menu
       JMenu editMenu = new JMenu("Edit");
 
-      // Undo/Redo
       JMenuItem undoItem = new JMenuItem("Undo");
       undoItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_Z, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
@@ -93,7 +110,6 @@ public class GuiMain {
       editMenu.add(redoItem);
       editMenu.addSeparator();
 
-      // Cut/Copy/Paste
       JMenuItem cutItem = new JMenuItem("Cut");
       cutItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_X, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
@@ -114,7 +130,6 @@ public class GuiMain {
       editMenu.add(pasteItem);
       editMenu.addSeparator();
 
-      // Rotate
       JMenuItem rotateItem = new JMenuItem("Rotate");
       rotateItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_R, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
@@ -147,11 +162,8 @@ public class GuiMain {
 
       JCheckBoxMenuItem snapGridItem = new JCheckBoxMenuItem("Snap to Grid");
       snapGridItem.setSelected(false);
-      snapGridItem.addActionListener(e -> {
-        circuitPanel.getInteraction().setSnapToGrid(snapGridItem.isSelected());
-      });
+      snapGridItem.addActionListener(e -> circuitPanel.getInteraction().setSnapToGrid(snapGridItem.isSelected()));
 
-      // Dark Mode Item
       JCheckBoxMenuItem darkModeItem = new JCheckBoxMenuItem("Dark Mode");
       darkModeItem.addActionListener(e -> {
         Theme.setDarkMode(darkModeItem.isSelected());
@@ -162,12 +174,10 @@ public class GuiMain {
           scrollPalette.setBackground(Theme.PALETTE_BACKGROUND);
           scrollPalette.getViewport().setBackground(Theme.PALETTE_BACKGROUND);
         }
-
         if (splitPane != null) {
           splitPane.setBackground(Theme.PALETTE_BACKGROUND);
           splitPane.repaint();
         }
-
         if (menuBar != null) {
           menuBar.setBackground(Theme.isDarkMode ? Theme.PALETTE_BACKGROUND : null);
           for (int i = 0; i < menuBar.getMenuCount(); i++) {
@@ -175,9 +185,8 @@ public class GuiMain {
             if (m != null)
               m.setForeground(Theme.TEXT_COLOR);
           }
-          if (zoomStatusLabel != null) {
+          if (zoomStatusLabel != null)
             zoomStatusLabel.setForeground(Theme.PALETTE_HEADINGS);
-          }
         }
       });
 
@@ -201,26 +210,52 @@ public class GuiMain {
       stepItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_T, 0));
       stepItem.addActionListener(e -> {
         circuitPanel.getCircuit().tick();
+        Simulator.run(1000);
         circuitPanel.repaint();
       });
 
-      // Speed Submenu
-      JMenu speedMenu = new JMenu("Clock Speed");
-      ButtonGroup speedGroup = new ButtonGroup();
+      // 1. Clock Speed Submenu (Hz)
+      JMenu clockSpeedMenu = new JMenu("Clock Speed");
+      ButtonGroup clockGroup = new ButtonGroup();
+      addSpeedItem(clockSpeedMenu, clockGroup, "0.5 Hz (Slow)", 2000, false);
+      addSpeedItem(clockSpeedMenu, clockGroup, "1 Hz", 1000, false);
+      addSpeedItem(clockSpeedMenu, clockGroup, "2 Hz (Default)", 500, true);
+      addSpeedItem(clockSpeedMenu, clockGroup, "5 Hz", 200, false);
+      addSpeedItem(clockSpeedMenu, clockGroup, "10 Hz", 100, false);
+      addSpeedItem(clockSpeedMenu, clockGroup, "20 Hz", 50, false);
+      addSpeedItem(clockSpeedMenu, clockGroup, "50 Hz (Fast)", 20, false);
 
-      addSpeedItem(speedMenu, speedGroup, "0.5 Hz (Slow)", 2000);
-      addSpeedItem(speedMenu, speedGroup, "1 Hz", 1000);
-      addSpeedItem(speedMenu, speedGroup, "2 Hz (Default)", 500).setSelected(true);
-      addSpeedItem(speedMenu, speedGroup, "5 Hz", 200);
-      addSpeedItem(speedMenu, speedGroup, "10 Hz", 100);
-      addSpeedItem(speedMenu, speedGroup, "20 Hz", 50);
-      addSpeedItem(speedMenu, speedGroup, "50 Hz (Fast)", 20);
+      // 2. Logic Speed Submenu (Propagation Delay)
+      JMenu logicSpeedMenu = new JMenu("Logic Speed (Propagation)");
+      ButtonGroup logicGroup = new ButtonGroup();
+
+      JRadioButtonMenuItem instantItem = new JRadioButtonMenuItem("Instant (1000 updates/frame)");
+      instantItem.setSelected(true);
+      instantItem.addActionListener(e -> logicStepsPerFrame = 1000);
+      logicGroup.add(instantItem);
+      logicSpeedMenu.add(instantItem);
+
+      JRadioButtonMenuItem fastItem = new JRadioButtonMenuItem("Fast (50 updates/frame)");
+      fastItem.addActionListener(e -> logicStepsPerFrame = 50);
+      logicGroup.add(fastItem);
+      logicSpeedMenu.add(fastItem);
+
+      JRadioButtonMenuItem mediumItem = new JRadioButtonMenuItem("Visible (5 updates/frame)");
+      mediumItem.addActionListener(e -> logicStepsPerFrame = 5);
+      logicGroup.add(mediumItem);
+      logicSpeedMenu.add(mediumItem);
+
+      JRadioButtonMenuItem slowItem = new JRadioButtonMenuItem("Slow Motion (1 update/frame)");
+      slowItem.addActionListener(e -> logicStepsPerFrame = 1);
+      logicGroup.add(slowItem);
+      logicSpeedMenu.add(slowItem);
 
       simMenu.add(startItem);
       simMenu.add(stopItem);
       simMenu.add(stepItem);
       simMenu.addSeparator();
-      simMenu.add(speedMenu);
+      simMenu.add(clockSpeedMenu);
+      simMenu.add(logicSpeedMenu); // ADDED
 
       menuBar.add(fileMenu);
       menuBar.add(editMenu);
@@ -246,10 +281,8 @@ public class GuiMain {
       scrollPalette.getViewport().setBackground(Theme.PALETTE_BACKGROUND);
 
       splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, scrollPalette, circuitPanel);
-
       splitPane.setUI(new BasicSplitPaneUI());
       splitPane.setBorder(null);
-
       splitPane.setDividerLocation(130);
       splitPane.setContinuousLayout(true);
       splitPane.setResizeWeight(0.0);
@@ -266,11 +299,9 @@ public class GuiMain {
         }
       });
 
-      // Define default windowed size (for when user exits fullscreen)
       frame.setSize(1280, 800);
       frame.setLocationRelativeTo(null);
 
-      // Full Screen by default
       toggleFullScreen(frame);
       circuitPanel.requestFocusInWindow();
 
@@ -279,10 +310,11 @@ public class GuiMain {
     });
   }
 
-  // Helper to add radio buttons for speed
-  private static JRadioButtonMenuItem addSpeedItem(JMenu menu, ButtonGroup group, String label, int delayMs) {
+  private static JRadioButtonMenuItem addSpeedItem(JMenu menu, ButtonGroup group, String label, int delayMs,
+      boolean selected) {
     JRadioButtonMenuItem item = new JRadioButtonMenuItem(label);
-    item.addActionListener(e -> simulationTimer.setDelay(delayMs));
+    item.setSelected(selected);
+    item.addActionListener(e -> clockDelayMs = delayMs);
     group.add(item);
     menu.add(item);
     return item;
@@ -311,6 +343,7 @@ public class GuiMain {
     fc.setFileFilter(new FileNameExtensionFilter("Logik Files (.lgk)", "lgk"));
     if (fc.showOpenDialog(frame) == JFileChooser.APPROVE_OPTION) {
       try {
+        Simulator.clear(); // Clear pending events when loading new file
         StorageManager.LoadResult result = StorageManager.load(fc.getSelectedFile());
         circuitPanel.setCircuit(result.circuit());
         circuitPanel.getInteraction().resetHistory();
@@ -338,7 +371,6 @@ public class GuiMain {
         prevLocation = frame.getLocation();
         prevSize = frame.getSize();
       }
-
       frame.setUndecorated(true);
       frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
       GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
@@ -354,7 +386,6 @@ public class GuiMain {
       gd.setFullScreenWindow(null);
       frame.setUndecorated(false);
       frame.setExtendedState(JFrame.NORMAL);
-
       if (prevLocation != null)
         frame.setLocation(prevLocation);
       if (prevSize != null)
