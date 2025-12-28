@@ -12,7 +12,7 @@ import uk.ac.cam.jml229.logic.model.Wire;
 
 public class StorageManager {
 
-  private static final int CURRENT_VERSION = 2;
+  private static final int CURRENT_VERSION = 3;
 
   // --- File IO Wrappers ---
 
@@ -202,6 +202,7 @@ public class StorageManager {
 
       Component c = null;
       switch (type) {
+        // Basic Gates
         case "AND":
           c = new AndGate("AND");
           break;
@@ -220,15 +221,39 @@ public class StorageManager {
         case "XOR":
           c = new XorGate("XOR");
           break;
+        case "BUFFER":
+          c = new BufferGate("BUF");
+          break;
+
+        // IO
         case "SWITCH":
           c = new Switch("SW");
           break;
         case "LIGHT":
           c = new OutputProbe("OUT");
           break;
-        case "BUFFER":
-          c = new BufferGate("BUF");
+        case "SEVEN_SEG":
+          c = new SevenSegmentDisplay("7Seg");
           break;
+        case "HEX":
+          c = new HexDisplay("Hex");
+          break;
+
+        // Sequential
+        case "CLOCK":
+          c = new Clock("CLK");
+          break;
+        case "D_FF":
+          c = new DFlipFlop("D-FF");
+          break;
+        case "JK_FF":
+          c = new JKFlipFlop("JK-FF");
+          break;
+        case "T_FF":
+          c = new TFlipFlop("T-FF");
+          break;
+
+        // Custom
         case "CUSTOM":
           if (parts.length > nameIndex) {
             String name = parseString(parts[nameIndex]);
@@ -293,6 +318,7 @@ public class StorageManager {
   }
 
   private static String getComponentType(Component c) {
+    // Basic
     if (c instanceof AndGate)
       return "AND";
     if (c instanceof OrGate)
@@ -305,14 +331,33 @@ public class StorageManager {
       return "NOR";
     if (c instanceof XorGate)
       return "XOR";
+    if (c instanceof BufferGate)
+      return "BUFFER";
+
+    // IO
     if (c instanceof Switch)
       return "SWITCH";
     if (c instanceof OutputProbe)
       return "LIGHT";
-    if (c instanceof BufferGate)
-      return "BUFFER";
+    if (c instanceof SevenSegmentDisplay)
+      return "SEVEN_SEG";
+    if (c instanceof HexDisplay)
+      return "HEX";
+
+    // Sequential
+    if (c instanceof Clock)
+      return "CLOCK";
+    if (c instanceof DFlipFlop)
+      return "D_FF";
+    if (c instanceof JKFlipFlop)
+      return "JK_FF";
+    if (c instanceof TFlipFlop)
+      return "T_FF";
+
+    // Custom
     if (c instanceof CustomComponent)
       return "CUSTOM";
+
     return "UNKNOWN";
   }
 
