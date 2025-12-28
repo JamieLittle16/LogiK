@@ -354,13 +354,25 @@ public class ComponentPainter {
     g2.setColor(new Color(40, 40, 40));
     g2.fillRect(dispX, dispY, dispW, dispH);
 
-    int[][] segs = { { 10, 10, 30, 5 }, { 40, 15, 5, 25 }, { 40, 45, 5, 25 }, { 10, 70, 30, 5 }, { 5, 45, 5, 25 },
-        { 5, 15, 5, 25 }, { 10, 40, 30, 5 } };
+    int[][] segs = {
+        { 10, 10, 30, 5 }, // a
+        { 40, 15, 5, 25 }, // b
+        { 40, 45, 5, 25 }, // c
+        { 10, 70, 30, 5 }, // d
+        { 5, 45, 5, 25 }, // e
+        { 5, 15, 5, 25 }, // f
+        { 10, 40, 30, 5 } // g
+    };
+
     for (int i = 0; i < 7; i++) {
       boolean on = check.isOn(i);
       g2.setColor(on ? new Color(255, 50, 50) : new Color(60, 0, 0));
       g2.fillRect(dispX + segs[i][0], dispY + segs[i][1], segs[i][2], segs[i][3]);
     }
+
+    boolean dp = check.isOn(7);
+    g2.setColor(dp ? new Color(255, 50, 50) : new Color(60, 0, 0));
+    g2.fillOval(dispX + 40, dispY + 70, 5, 5);
   }
 
   private void drawGenericBox(Graphics2D g2, Component c, int x, int y, boolean sel) {
