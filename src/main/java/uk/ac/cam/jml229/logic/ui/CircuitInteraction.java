@@ -624,10 +624,26 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         return;
       if (hitTester.findWaypointAt(worldPt) != null)
         return;
+
       Component c = hitTester.findComponentAt(worldPt);
-      if (c instanceof Switch) {
-        ((Switch) c).toggle(!((Switch) c).getState());
-        panel.repaint();
+      if (c != null) {
+        // Double Click -> Rename
+        if (e.getClickCount() == 2) {
+          String newName = JOptionPane.showInputDialog(panel, "Rename Component:", c.getName());
+          if (newName != null && !newName.trim().isEmpty()) {
+            if (newName.length() > 8)
+              newName = newName.substring(0, 8); // Keep it short
+            c.setName(newName);
+            panel.repaint();
+          }
+          return;
+        }
+
+        // Single Click -> Toggle Switch
+        if (c instanceof Switch) {
+          ((Switch) c).toggle(!((Switch) c).getState());
+          panel.repaint();
+        }
       }
     }
   }

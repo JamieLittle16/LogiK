@@ -36,6 +36,10 @@ public abstract class Component {
   public void setRotation(int r) {
     this.rotation = r;
   }
+
+  public void setName(String name) {
+    this.name = name;
+  }
   // ==========================================
   // INPUT MANAGEMENT
   // ==========================================
