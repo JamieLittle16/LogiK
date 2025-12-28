@@ -27,13 +27,15 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   private ComponentPalette palette;
 
   // --- Settings ---
-  private boolean snapToGrid = false; // Default to free movement
+  private boolean snapToGrid = false;
 
   // --- Clipboard ---
   private static String clipboardString = null;
 
   // --- Interaction State ---
   private final List<Component> selectedComponents = new ArrayList<>();
+  private final List<WaypointRef> selectedWaypoints = new ArrayList<>();
+
   private WireSegment selectedWireSegment = null;
   private Pin hoveredPin = null;
   private WireSegment hoveredWire = null;
@@ -191,6 +193,10 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   public WaypointRef getSelectedWaypoint() {
     return selectedWaypoint;
+  }
+
+  public List<WaypointRef> getSelectedWaypoints() {
+    return selectedWaypoints;
   }
 
   public WaypointRef getHoveredWaypoint() {
@@ -367,7 +373,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       connectionStartPin = clickedPin;
       selectedComponents.clear();
       selectedWireSegment = null;
-      selectedWaypoint = null;
+      selectedWaypoints.clear();
       panel.repaint();
       return;
     }
@@ -376,6 +382,8 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     WaypointRef clickedWP = hitTester.findWaypointAt(worldPt);
     if (clickedWP != null) {
       selectedWaypoint = clickedWP;
+      selectedWaypoints.clear();
+      selectedWaypoints.add(clickedWP);
       selectedWireSegment = new WireSegment(getWireForConnection(clickedWP.connection()), clickedWP.connection());
       selectedComponents.clear();
       panel.repaint();
@@ -392,10 +400,17 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         history.pushState(circuit);
         int idx = hitTester.getWaypointInsertionIndex(clickedWire, worldPt);
         clickedWire.connection().waypoints.add(idx, worldPt);
-        selectedWaypoint = new WaypointRef(clickedWire.connection(), worldPt);
+
+        // Auto Select New Waypoint
+        WaypointRef newWp = new WaypointRef(clickedWire.connection(), worldPt);
+        selectedWaypoint = newWp;
+        selectedWaypoints.clear();
+        selectedWaypoints.add(newWp);
+
       } else {
         selectedWireSegment = clickedWire;
         selectedWaypoint = null;
+        selectedWaypoints.clear();
         selectedComponents.clear();
       }
       panel.repaint();
@@ -403,6 +418,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     } else {
       selectedWireSegment = null;
       selectedWaypoint = null;
+      selectedWaypoints.clear();
     }
 
     // Component Selection
@@ -583,6 +599,48 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         panel.repaint();
       }
     }
+
+    // --- ARROW MOVEMENT LOGIC ---
+    int dx = 0;
+    int dy = 0;
+    int step = snapToGrid ? 20 : 1;
+
+    // Allow Shift to speed up movement if grid snap is OFF (1px -> 10px)
+    if (!snapToGrid && e.isShiftDown()) {
+      step = 10;
+    }
+
+    switch (e.getKeyCode()) {
+      case KeyEvent.VK_UP:
+        dy = -step;
+        break;
+      case KeyEvent.VK_DOWN:
+        dy = step;
+        break;
+      case KeyEvent.VK_LEFT:
+        dx = -step;
+        break;
+      case KeyEvent.VK_RIGHT:
+        dx = step;
+        break;
+    }
+
+    // Move Selection
+    if (dx != 0 || dy != 0) {
+      if (!selectedComponents.isEmpty() || !selectedWaypoints.isEmpty()) {
+        history.pushState(circuit);
+
+        for (Component c : selectedComponents) {
+          c.setPosition(c.getX() + dx, c.getY() + dy);
+        }
+
+        for (WaypointRef wp : selectedWaypoints) {
+          wp.point().translate(dx, dy);
+        }
+
+        panel.repaint();
+      }
+    }
   }
 
   @Override
@@ -687,6 +745,10 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
           selectedComponents.add(c);
       }
     }
+    // Note: We are currently NOT selecting waypoints in the box selector
+    // based on your instruction to "fix it later".
+    // If you want that, uncomment the logic from the previous turn.
+
     selectionRect = null;
   }
 
