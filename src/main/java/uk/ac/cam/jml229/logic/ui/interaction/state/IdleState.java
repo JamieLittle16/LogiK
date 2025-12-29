@@ -7,6 +7,7 @@ import javax.swing.*;
 
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.components.io.Switch;
+import uk.ac.cam.jml229.logic.components.gates.LogicGate;
 import uk.ac.cam.jml229.logic.ui.interaction.*;
 import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.Pin;
 import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.WireSegment;
@@ -180,6 +181,32 @@ public class IdleState implements InteractionState {
 
   private void showContextMenu(int x, int y) {
     JPopupMenu menu = new JPopupMenu();
+
+    // If exactly one component is selected and it is a LogicGate (AND, OR, etc.)
+    if (ctx.getSelection().size() == 1 && ctx.getSelection().get(0) instanceof LogicGate) {
+      LogicGate gate = (LogicGate) ctx.getSelection().get(0);
+
+      JMenuItem setInputs = new JMenuItem("Set Inputs...");
+      setInputs.addActionListener(e -> {
+        String input = JOptionPane.showInputDialog(ctx.getPanel(),
+            "Number of Inputs (2-32):",
+            String.valueOf(gate.getInputCount()));
+
+        if (input != null) {
+          try {
+            int n = Integer.parseInt(input);
+            // Save history BEFORE changing state so Undo works
+            ctx.saveHistory();
+            gate.resizeInputs(n);
+            ctx.getPanel().repaint();
+          } catch (NumberFormatException ex) {
+            // Ignore invalid numbers
+          }
+        }
+      });
+      menu.add(setInputs);
+      menu.addSeparator();
+    }
 
     JMenuItem createIC = new JMenuItem("Create Custom IC");
     createIC.addActionListener(e -> ctx.createCustomComponentFromSelection());
