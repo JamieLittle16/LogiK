@@ -11,3 +11,6 @@ bin/
 # --- Java/Mac System Files ---
 *.class
 .DS_Store
+
+# --- Distrbution ---
+dist/
