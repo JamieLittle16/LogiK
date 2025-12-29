@@ -44,7 +44,10 @@ public class Theme {
   public static Color BUTTON_BACKGROUND = Color.WHITE;
   public static Color BUTTON_BORDER = new Color(200, 200, 200);
 
-  // --- Theme Loading Logic ---
+  // --- NEW: Hover & Scrollbar Colors ---
+  public static Color BUTTON_HOVER = new Color(235, 245, 255);
+  public static Color SCROLL_TRACK = new Color(245, 245, 245);
+  public static Color SCROLL_THUMB = new Color(200, 200, 200);
 
   public static void loadTheme(String themeName) {
     Properties props = new Properties();
@@ -98,17 +101,25 @@ public class Theme {
     BUTTON_BACKGROUND = parseColor(p, "buttonBackground", BUTTON_BACKGROUND);
     BUTTON_BORDER = parseColor(p, "buttonBorder", BUTTON_BORDER);
 
-    // Calculate the default values based on Dark Mode first...
+    // --- Defaults for new properties ---
+    Color defHover = isDarkMode ? new Color(60, 60, 60) : new Color(235, 245, 255);
+    Color defScrollTrack = isDarkMode ? PALETTE_BACKGROUND : new Color(245, 245, 245);
+    Color defScrollThumb = isDarkMode ? new Color(80, 80, 80) : new Color(200, 200, 200);
+
+    BUTTON_HOVER = parseColor(p, "buttonHover", defHover);
+    SCROLL_TRACK = parseColor(p, "scrollTrack", defScrollTrack);
+    SCROLL_THUMB = parseColor(p, "scrollThumb", defScrollThumb);
+
+    // Derived overrides
     Color defBox = isDarkMode ? COMP_FILL_GRADIENT_1 : new Color(230, 230, 230);
     Color defHeader = isDarkMode ? COMP_BORDER : new Color(100, 100, 255);
     Color defSwitch = isDarkMode ? COMP_FILL_GRADIENT_2 : new Color(200, 200, 200);
 
-    // ...then try to read specific overrides from the file
     GENERIC_BOX_FILL = parseColor(p, "genericBoxFill", defBox);
     GENERIC_HEADER_FILL = parseColor(p, "genericHeaderFill", defHeader);
     SWITCH_FILL = parseColor(p, "switchFill", defSwitch);
 
-    // Finalise Aliases
+    // Finalize Aliases
     GRID_COLOR = GRID_MAJOR;
     PANEL_BACKGROUND = BACKGROUND;
     SELECTION_FILL = new Color(SELECTION_BORDER.getRed(), SELECTION_BORDER.getGreen(), SELECTION_BORDER.getBlue(), 50);
@@ -148,7 +159,11 @@ public class Theme {
       BUTTON_BACKGROUND = new Color(45, 45, 45);
       BUTTON_BORDER = new Color(80, 80, 80);
 
-      // Default Derived
+      // NEW Defaults for Dark Mode
+      BUTTON_HOVER = new Color(60, 60, 60);
+      SCROLL_TRACK = new Color(37, 37, 38);
+      SCROLL_THUMB = new Color(80, 80, 80);
+
       GENERIC_BOX_FILL = COMP_FILL_GRADIENT_1;
       GENERIC_HEADER_FILL = COMP_BORDER;
       SWITCH_FILL = COMP_FILL_GRADIENT_2;
@@ -174,13 +189,16 @@ public class Theme {
       BUTTON_BACKGROUND = Color.WHITE;
       BUTTON_BORDER = new Color(200, 200, 200);
 
-      // Default Derived
+      // NEW Defaults for Light Mode
+      BUTTON_HOVER = new Color(235, 245, 255);
+      SCROLL_TRACK = new Color(245, 245, 245);
+      SCROLL_THUMB = new Color(200, 200, 200);
+
       GENERIC_BOX_FILL = new Color(230, 230, 230);
       GENERIC_HEADER_FILL = new Color(100, 100, 255);
       SWITCH_FILL = new Color(200, 200, 200);
     }
 
-    // Final Aliases
     GRID_COLOR = GRID_MAJOR;
     PANEL_BACKGROUND = BACKGROUND;
     SELECTION_FILL = new Color(SELECTION_BORDER.getRed(), SELECTION_BORDER.getGreen(), SELECTION_BORDER.getBlue(), 50);

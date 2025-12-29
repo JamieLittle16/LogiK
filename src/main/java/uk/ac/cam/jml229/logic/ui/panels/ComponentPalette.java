@@ -194,7 +194,7 @@ public class ComponentPalette extends JPanel implements Scrollable {
 
       @Override
       public void mouseEntered(MouseEvent e) {
-        button.setBackground(new Color(235, 245, 255));
+        button.setBackground(Theme.BUTTON_HOVER);
       }
 
       @Override

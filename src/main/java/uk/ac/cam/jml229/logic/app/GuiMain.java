@@ -321,6 +321,9 @@ public class GuiMain {
     if (scrollPalette != null) {
       scrollPalette.setBackground(Theme.PALETTE_BACKGROUND);
       scrollPalette.getViewport().setBackground(Theme.PALETTE_BACKGROUND);
+
+      scrollPalette.getVerticalScrollBar().setUI(new ThemedScrollBarUI());
+      scrollPalette.getHorizontalScrollBar().setUI(new ThemedScrollBarUI());
     }
     if (splitPane != null) {
       splitPane.setBackground(Theme.PALETTE_BACKGROUND);
