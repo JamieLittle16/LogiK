@@ -14,8 +14,6 @@ public class ComponentPainter {
 
   private static final int PIN_SIZE = 8;
 
-  // No constructor needed anymore
-
   // ==========================================
   // Public Entry Point
   // ==========================================
@@ -29,7 +27,7 @@ public class ComponentPainter {
     int cx = x + dim.width / 2;
     int cy = y + dim.height / 2;
 
-    // Apply Rotation
+    // Apply Component Rotation
     g2.rotate(Math.toRadians(c.getRotation() * 90), cx, cy);
 
     // Identify Type from Registry
@@ -116,8 +114,15 @@ public class ComponentPainter {
     for (int i = 0; i < inputCount; i++) {
       int yOffset = (inputCount == 1) ? 20 : 10 + (i * 20);
       int endX = x;
+
+      // Standard behavior: OR/XOR inputs go "inside" the bounding box slightly
       if (c instanceof OrGate || c instanceof NorGate || c instanceof XorGate)
         endX = x + 8;
+
+      // For Multi-Input Rails, stubs stop at the Rail (x)
+      if (inputCount > 2)
+        endX = x;
+
       g2.drawLine(x - 10, y + yOffset, endX, y + yOffset);
     }
     g2.setTransform(oldTx);
@@ -229,10 +234,8 @@ public class ComponentPainter {
     int tx = x + (dim.width - tw) / 2;
     int ty = y - 5;
 
-    // --- Counter-rotate text if upside down ---
-    if (c.getRotation() == 2) { // 180 degrees
+    if (c.getRotation() == 2) { // Counter-rotate if upside down
       AffineTransform saved = g2.getTransform();
-      // Rotate 180 around the center of the text
       g2.rotate(Math.PI, x + dim.width / 2.0, ty - fm.getAscent() / 2.0);
       g2.drawString(name, tx, ty);
       g2.setTransform(saved);
@@ -264,14 +267,11 @@ public class ComponentPainter {
       name = name.substring(0, Math.min(name.length(), 5)) + "..";
     }
     int textWidth = fm.stringWidth(name);
-
     int tx = x + (d.width - textWidth) / 2;
     int ty = y + 12;
 
-    // --- Counter-rotate text inside box ---
     if (c.getRotation() == 2) {
       AffineTransform saved = g2.getTransform();
-      // Rotate 180 around text center
       double centerX = tx + textWidth / 2.0;
       double centerY = ty - fm.getAscent() / 2.0;
       g2.rotate(Math.PI, centerX, centerY);
@@ -351,7 +351,6 @@ public class ComponentPainter {
   }
 
   // --- Flip Flops ---
-
   private void drawFlipFlopBase(Graphics2D g2, Component c, int x, int y, int w, int h, boolean sel) {
     if (sel) {
       g2.setColor(Theme.SELECTION_BORDER);
@@ -398,7 +397,6 @@ public class ComponentPainter {
   }
 
   // --- Displays ---
-
   private interface SegmentChecker {
     boolean isOn(int idx);
   }
@@ -414,31 +412,19 @@ public class ComponentPainter {
     g2.setColor(Color.GRAY);
     g2.setStroke(new BasicStroke(2));
     g2.drawRect(x, y, w, h);
-
     int dispW = 50;
     int dispH = 80;
     int dispX = x + (w - dispW) / 2;
     int dispY = y + (h - dispH) / 2;
     g2.setColor(new Color(40, 40, 40));
     g2.fillRect(dispX, dispY, dispW, dispH);
-
-    int[][] segs = {
-        { 10, 10, 30, 5 }, // a
-        { 40, 15, 5, 25 }, // b
-        { 40, 45, 5, 25 }, // c
-        { 10, 70, 30, 5 }, // d
-        { 5, 45, 5, 25 }, // e
-        { 5, 15, 5, 25 }, // f
-        { 10, 40, 30, 5 } // g
-    };
-
+    int[][] segs = { { 10, 10, 30, 5 }, { 40, 15, 5, 25 }, { 40, 45, 5, 25 }, { 10, 70, 30, 5 }, { 5, 45, 5, 25 },
+        { 5, 15, 5, 25 }, { 10, 40, 30, 5 } };
     for (int i = 0; i < 7; i++) {
       boolean on = check.isOn(i);
       g2.setColor(on ? new Color(255, 50, 50) : new Color(60, 0, 0));
       g2.fillRect(dispX + segs[i][0], dispY + segs[i][1], segs[i][2], segs[i][3]);
     }
-
-    // Dot
     boolean dp = check.isOn(7);
     g2.setColor(dp ? new Color(255, 50, 50) : new Color(60, 0, 0));
     g2.fillOval(dispX + 40, dispY + 70, 5, 5);
@@ -452,7 +438,9 @@ public class ComponentPainter {
     drawDisplayImpl(g2, x, y, 60, 80, sel, c::isSegmentOn);
   }
 
-  // --- Logic Gates ---
+  // ==========================================
+  // Multi-Input Logic Gates
+  // ==========================================
 
   private void fillGate(Graphics2D g2, Path2D p, boolean sel) {
     if (sel) {
@@ -481,30 +469,83 @@ public class ComponentPainter {
     g2.drawOval(x, y, 10, 10);
   }
 
+  // --- RAIL HELPER ---
+  private void drawRail(Graphics2D g2, int x, int y, int height) {
+    // Vertical Rail Line
+    g2.setColor(Theme.COMP_BORDER);
+    g2.setStroke(new BasicStroke(2));
+    g2.drawLine(x, y + 10, x, y + height - 10);
+
+    // Horizontal "Feeder" to gate body center
+    int centerY = y + height / 2;
+    g2.drawLine(x, centerY, x + 5, centerY);
+  }
+
   private void drawAndGate(Graphics2D g2, Component c, int x, int y, boolean sel) {
+    int inputCount = c.getInputCount();
+    int height = getComponentSize(c).height;
+    int yOffset = (inputCount > 2) ? (height - 40) / 2 : 0;
+
+    if (inputCount > 2)
+      drawRail(g2, x, y, height);
+
+    // Draw centered body
     Path2D p = new Path2D.Double();
-    p.moveTo(x, y);
-    p.lineTo(x + 25, y);
-    p.curveTo(x + 57, y, x + 57, y + 40, x + 25, y + 40);
-    p.lineTo(x, y + 40);
+    int by = y + yOffset;
+    p.moveTo(x, by);
+    p.lineTo(x + 25, by);
+    p.curveTo(x + 57, by, x + 57, by + 40, x + 25, by + 40);
+    p.lineTo(x, by + 40);
     p.closePath();
     fillGate(g2, p, sel);
   }
 
   private void drawOrGate(Graphics2D g2, Component c, int x, int y, boolean sel) {
+    int inputCount = c.getInputCount();
+    int height = getComponentSize(c).height;
+    int yOffset = (inputCount > 2) ? (height - 40) / 2 : 0;
+
+    if (inputCount > 2) {
+      drawRail(g2, x, y, height);
+      // Small connector for OR gate indentation
+      int centerY = y + height / 2;
+      g2.setColor(Theme.COMP_BORDER);
+      g2.drawLine(x + 5, centerY, x + 10, centerY);
+    }
+
     Path2D p = new Path2D.Double();
-    p.moveTo(x, y);
-    p.quadTo(x + 15, y + 20, x, y + 40);
-    p.quadTo(x + 35, y + 40, x + 50, y + 20);
-    p.quadTo(x + 35, y, x, y);
+    int by = y + yOffset;
+    p.moveTo(x, by);
+    p.quadTo(x + 15, by + 20, x, by + 40);
+    p.quadTo(x + 35, by + 40, x + 50, by + 20);
+    p.quadTo(x + 35, by, x, by);
     p.closePath();
     fillGate(g2, p, sel);
   }
 
   private void drawXorGate(Graphics2D g2, Component c, int x, int y, boolean sel) {
+    int inputCount = c.getInputCount();
+    int height = getComponentSize(c).height;
+    int yOffset = (inputCount > 2) ? (height - 40) / 2 : 0;
+
+    int xShift = 0;
+    if (inputCount > 2) {
+      drawRail(g2, x, y, height);
+      // XOR needs to shift right so the rail doesn't overlap the detached curve
+      xShift = 5;
+      // Connect Rail to Detached Curve
+      int centerY = y + height / 2;
+      g2.setColor(Theme.COMP_BORDER);
+      g2.drawLine(x, centerY, x + xShift, centerY);
+    }
+
+    int bx = x + xShift;
+    int by = y + yOffset;
+
     Path2D b = new Path2D.Double();
-    b.moveTo(x - 4, y);
-    b.quadTo(x + 11, y + 20, x - 4, y + 40);
+    b.moveTo(bx - 4, by);
+    b.quadTo(bx + 11, by + 20, bx - 4, by + 40);
+
     if (sel) {
       g2.setColor(Theme.SELECTION_BORDER);
       g2.setStroke(new BasicStroke(5));
@@ -513,7 +554,17 @@ public class ComponentPainter {
     g2.setColor(Theme.COMP_BORDER);
     g2.setStroke(new BasicStroke(2));
     g2.draw(b);
-    drawOrGate(g2, c, x + 5, y, sel);
+
+    // Draw the OR part shifted
+    // We reuse the OR path logic but manually here to apply shift
+    Path2D p = new Path2D.Double();
+    int orX = bx + 5;
+    p.moveTo(orX, by);
+    p.quadTo(orX + 15, by + 20, orX, by + 40);
+    p.quadTo(orX + 35, by + 40, orX + 50, by + 20);
+    p.quadTo(orX + 35, by, orX, by);
+    p.closePath();
+    fillGate(g2, p, sel);
   }
 
   private void drawBufferGate(Graphics2D g2, Component c, int x, int y, boolean sel) {
@@ -531,12 +582,26 @@ public class ComponentPainter {
   }
 
   private void drawNandGate(Graphics2D g2, Component c, int x, int y, boolean sel) {
-    drawAndGate(g2, c, x, y, sel);
-    drawBubble(g2, x + 45, y + 15, sel);
+    int inputCount = c.getInputCount();
+    int height = getComponentSize(c).height;
+    int yOffset = (inputCount > 2) ? (height - 40) / 2 : 0;
+
+    drawAndGate(g2, c, x, y, sel); // This draws rail + body
+
+    // Bubble (needs to be centered relative to the body, not top-left)
+    int by = y + yOffset;
+    drawBubble(g2, x + 45, by + 15, sel);
   }
 
   private void drawNorGate(Graphics2D g2, Component c, int x, int y, boolean sel) {
-    drawOrGate(g2, c, x, y, sel);
-    drawBubble(g2, x + 45, y + 15, sel);
+    int inputCount = c.getInputCount();
+    int height = getComponentSize(c).height;
+    int yOffset = (inputCount > 2) ? (height - 40) / 2 : 0;
+
+    drawOrGate(g2, c, x, y, sel); // This draws rail + body
+
+    // Bubble
+    int by = y + yOffset;
+    drawBubble(g2, x + 45, by + 15, sel);
   }
 }
