@@ -7,12 +7,13 @@ import java.awt.Point;
 
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
+import uk.ac.cam.jml229.logic.components.gates.LogicGate;
 import uk.ac.cam.jml229.logic.core.Circuit;
 import uk.ac.cam.jml229.logic.core.Wire;
 
 public class StorageManager {
 
-  private static final int CURRENT_VERSION = 3;
+  private static final int CURRENT_VERSION = 4;
 
   public static void save(File file, Circuit circuit, List<Component> paletteTools) throws IOException {
     try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
@@ -140,11 +141,14 @@ public class StorageManager {
         type = "CUSTOM";
         extra = " \"" + c.getName() + "\"";
       } else {
-        // --- UPDATED: Use Registry ---
         var entry = ComponentRegistry.fromComponent(c);
         if (entry.isPresent()) {
           type = entry.get().getId();
         }
+      }
+
+      if (c instanceof LogicGate) {
+        extra += " INPUTS:" + c.getInputCount();
       }
 
       writer.printf("COMP %s %d %d %d %d%s%n", type, id, c.getX(), c.getY(), c.getRotation(), extra);
@@ -193,7 +197,6 @@ public class StorageManager {
             c = prototypes.get(name).makeCopy();
         }
       } else {
-        // --- Use Registry ---
         var entry = ComponentRegistry.fromId(type);
         if (entry.isPresent()) {
           c = entry.get().createInstance();
@@ -203,6 +206,21 @@ public class StorageManager {
       if (c != null) {
         c.setPosition(x, y);
         c.setRotation(rotation);
+
+        // Scan remaining parts for "INPUTS:n" tag
+        if (c instanceof LogicGate) {
+          for (String part : parts) {
+            if (part.startsWith("INPUTS:")) {
+              try {
+                int inputs = Integer.parseInt(part.substring(7));
+                ((LogicGate) c).resizeInputs(inputs);
+              } catch (NumberFormatException e) {
+                // ignore corrupt tag
+              }
+            }
+          }
+        }
+
         circuit.addComponent(c);
         idMap.put(id, c);
       }
