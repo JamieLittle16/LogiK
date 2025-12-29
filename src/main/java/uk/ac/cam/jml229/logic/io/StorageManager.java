@@ -13,7 +13,7 @@ import uk.ac.cam.jml229.logic.core.Wire;
 
 public class StorageManager {
 
-  private static final int CURRENT_VERSION = 4;
+  private static final int CURRENT_VERSION = 5;
 
   public static void save(File file, Circuit circuit, List<Component> paletteTools) throws IOException {
     try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
@@ -144,6 +144,14 @@ public class StorageManager {
         var entry = ComponentRegistry.fromComponent(c);
         if (entry.isPresent()) {
           type = entry.get().getId();
+
+          // Check if the current name is different from the default factory name.
+          // If it is different save it. If it's the default skip it to save
+          // space.
+          String defaultName = entry.get().createInstance().getName();
+          if (!Objects.equals(c.getName(), defaultName)) {
+            extra = " \"" + c.getName() + "\"";
+          }
         }
       }
 
@@ -207,6 +215,15 @@ public class StorageManager {
         c.setPosition(x, y);
         c.setRotation(rotation);
 
+        // If a name string is present (starts with quote), apply it.
+        // This handles renamed Gates AND TextLabels.
+        if (parts.length > nameIdx) {
+          String token = parts[nameIdx];
+          if (token.startsWith("\"")) {
+            c.setName(parseString(token));
+          }
+        }
+
         // Scan remaining parts for "INPUTS:n" tag
         if (c instanceof LogicGate) {
           for (String part : parts) {
@@ -230,6 +247,7 @@ public class StorageManager {
   }
 
   private static void parseWire(String line, Circuit circuit, Map<Integer, Component> idMap) {
+    // ... (rest of file remains unchanged) ...
     try {
       Pattern p = Pattern.compile("WIRE (\\d+):(\\d+) (\\d+):(\\d+)(?: \\[(.*)\\])?");
       Matcher m = p.matcher(line);
@@ -243,7 +261,6 @@ public class StorageManager {
           circuit.addConnection(src, srcIdx, dst, dstIdx);
           if (m.group(5) != null) {
             Wire w = src.getOutputWire(srcIdx);
-            // Find connection and add waypoints
             for (var pc : w.getDestinations()) {
               if (pc.component == dst && pc.inputIndex == dstIdx) {
                 for (String s : m.group(5).split(" ")) {
