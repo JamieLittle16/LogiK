@@ -5,6 +5,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
 import java.util.List;
+import java.util.function.Consumer; // ADDED
 
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
@@ -19,6 +20,7 @@ import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.WaypointRef;
 import uk.ac.cam.jml229.logic.ui.interaction.state.*;
 import uk.ac.cam.jml229.logic.io.HistoryManager;
 import uk.ac.cam.jml229.logic.io.StorageManager;
+import uk.ac.cam.jml229.logic.app.Theme; // ADDED
 
 public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
@@ -30,6 +32,9 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   private ComponentPalette palette;
 
   private InteractionState currentState;
+
+  // --- NEW: Callback for Timing ---
+  private Consumer<List<Component>> onOpenTiming;
 
   // --- SHARED VIEW STATE ---
   private final List<Component> selectedComponents = new ArrayList<>();
@@ -58,6 +63,11 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     this.history.pushState(circuit);
 
     setState(new IdleState(this));
+  }
+
+  // --- NEW: Setter for callback ---
+  public void setOnOpenTiming(Consumer<List<Component>> callback) {
+    this.onOpenTiming = callback;
   }
 
   public void setState(InteractionState newState) {
@@ -125,7 +135,66 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   // --- Events ---
   @Override
   public void mousePressed(MouseEvent e) {
+    // --- NEW: Context Menu Logic ---
+    if (SwingUtilities.isRightMouseButton(e)) {
+      Component c = hitTester.findComponentAt(getWorldPoint(e));
+      if (c != null) {
+        // Select it if not already selected
+        if (!selectedComponents.contains(c)) {
+          if (!e.isShiftDown())
+            clearSelection();
+          addToSelection(c);
+        }
+        showContextMenu(e);
+        return;
+      } else if (!selectedComponents.isEmpty()) {
+        showContextMenu(e);
+        return;
+      }
+    }
+    // -------------------------------
     currentState.mousePressed(e);
+  }
+
+  // --- NEW: Context Menu ---
+  private void showContextMenu(MouseEvent e) {
+    JPopupMenu menu = new JPopupMenu();
+
+    // Theme Support
+    menu.setBackground(Theme.isDarkMode ? Theme.PALETTE_BACKGROUND : Color.WHITE);
+    menu.setBorder(BorderFactory.createLineBorder(Theme.BUTTON_BORDER));
+
+    JMenuItem icItem = new JMenuItem("Create Custom IC");
+    icItem.addActionListener(ev -> createCustomComponentFromSelection());
+    menu.add(icItem);
+
+    JMenuItem timingItem = new JMenuItem("Add to Timing Diagram");
+    timingItem.addActionListener(ev -> {
+      if (onOpenTiming != null) {
+        onOpenTiming.accept(new ArrayList<>(selectedComponents));
+      }
+    });
+    menu.add(timingItem);
+
+    menu.addSeparator();
+
+    JMenuItem copyItem = new JMenuItem("Copy");
+    copyItem.addActionListener(ev -> copy());
+    menu.add(copyItem);
+
+    JMenuItem delItem = new JMenuItem("Delete");
+    delItem.addActionListener(ev -> deleteSelection());
+    menu.add(delItem);
+
+    // Style Items
+    for (java.awt.Component c : menu.getComponents()) {
+      if (c instanceof JMenuItem) {
+        c.setBackground(menu.getBackground());
+        c.setForeground(Theme.TEXT_COLOR);
+      }
+    }
+
+    menu.show(e.getComponent(), e.getX(), e.getY());
   }
 
   @Override

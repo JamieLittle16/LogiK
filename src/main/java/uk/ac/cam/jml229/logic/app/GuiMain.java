@@ -15,6 +15,7 @@ import java.awt.Taskbar;
 
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.components.CustomComponent;
+import uk.ac.cam.jml229.logic.core.Wire;
 import uk.ac.cam.jml229.logic.io.SettingsManager;
 import uk.ac.cam.jml229.logic.io.StorageManager;
 import uk.ac.cam.jml229.logic.ui.panels.*;
@@ -22,6 +23,8 @@ import uk.ac.cam.jml229.logic.ui.interaction.*;
 import uk.ac.cam.jml229.logic.ui.render.*;
 import uk.ac.cam.jml229.logic.ui.SimulationController;
 import uk.ac.cam.jml229.logic.ui.AutoLayout;
+import uk.ac.cam.jml229.logic.ui.timing.TimingPanel;
+import uk.ac.cam.jml229.logic.ui.timing.SignalMonitor;
 
 public class GuiMain {
 
@@ -33,6 +36,10 @@ public class GuiMain {
   private static ComponentPalette palette;
   private static JFrame frame;
   private static JLabel zoomStatusLabel;
+
+  // --- NEW: Timing Window Variables ---
+  private static JFrame timingFrame;
+  private static TimingPanel timingPanel;
 
   private static JScrollPane scrollPalette;
   private static JMenuBar menuBar;
@@ -46,21 +53,13 @@ public class GuiMain {
     System.setProperty("swing.aatext", "true");
 
     try {
-      // Load the image from the JAR resources
       URL iconUrl = GuiMain.class.getResource("/images/icon.png");
       if (iconUrl != null) {
         Image icon = ImageIO.read(iconUrl);
-
-        // Set it as the Window icon (Windows/Linux title bar & taskbar)
         frame.setIconImage(icon);
-
-        // Set it as the Dock icon (macOS requirement)
-        // Note: This requires running on Java 9 or later.
         if (Taskbar.isTaskbarSupported() && Taskbar.getTaskbar().isSupported(Taskbar.Feature.ICON_IMAGE)) {
           Taskbar.getTaskbar().setIconImage(icon);
         }
-      } else {
-        System.err.println("Warning: Could not find icon.png in resources.");
       }
     } catch (Exception ex) {
       System.err.println("Warning: Failed to set app icon: " + ex.getMessage());
@@ -85,12 +84,59 @@ public class GuiMain {
       palette = new ComponentPalette(interaction, renderer);
       interaction.setPalette(palette);
 
-      simController = new SimulationController(circuitPanel.getCircuit(), circuitPanel::repaint);
+      // --- NEW: Init Timing Window with Toolbar ---
+      timingPanel = new TimingPanel();
+      timingFrame = new JFrame("Timing Diagram");
+      timingFrame.setSize(900, 500);
+      timingFrame.setLayout(new BorderLayout());
+
+      JToolBar timingTools = new JToolBar();
+      timingTools.setFloatable(false);
+
+      JButton playPauseBtn = new JButton("Pause");
+      playPauseBtn.addActionListener(e -> {
+        timingPanel.togglePause();
+        playPauseBtn.setText(timingPanel.isPaused() ? "Resume" : "Pause");
+      });
+      JButton zoomInBtn = new JButton("Zoom In (+)");
+      zoomInBtn.addActionListener(e -> timingPanel.zoomIn());
+      JButton zoomOutBtn = new JButton("Zoom Out (-)");
+      zoomOutBtn.addActionListener(e -> timingPanel.zoomOut());
+      JButton clearBtn = new JButton("Clear History");
+      clearBtn.addActionListener(e -> timingPanel.clear());
+
+      timingTools.add(playPauseBtn);
+      timingTools.addSeparator();
+      timingTools.add(zoomInBtn);
+      timingTools.add(zoomOutBtn);
+      timingTools.addSeparator();
+      timingTools.add(clearBtn);
+
+      timingFrame.add(timingTools, BorderLayout.NORTH);
+
+      JScrollPane timingScroll = new JScrollPane(timingPanel);
+      timingScroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+      timingScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
+      timingScroll.getVerticalScrollBar().setUnitIncrement(20);
+      timingScroll.getHorizontalScrollBar().setUnitIncrement(20);
+      timingFrame.add(timingScroll, BorderLayout.CENTER);
+      timingFrame.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+      // ---------------------------------------------
+
+      // --- Hook Simulation to Timing ---
+      simController = new SimulationController(circuitPanel.getCircuit(), () -> {
+        circuitPanel.repaint();
+        if (timingFrame != null && timingFrame.isVisible()) {
+          timingPanel.tick();
+        }
+      });
       simController.start();
 
-      circuitPanel.setOnCircuitChanged(newCircuit -> {
-        simController.setCircuit(newCircuit);
-      });
+      circuitPanel.setOnCircuitChanged(newCircuit -> simController.setCircuit(newCircuit));
+
+      // --- NEW: Hook up Context Menu Listener ---
+      interaction.setOnOpenTiming(selection -> addSelectionToTiming(selection));
+
       // --- Build Menu Bar ---
       menuBar = new JMenuBar();
 
@@ -145,6 +191,14 @@ public class GuiMain {
       editMenu.add(deleteItem);
 
       JMenu viewMenu = new JMenu("View");
+      // --- NEW: View Timing Item ---
+      JMenuItem timingItem = new JMenuItem("Show Timing Diagram");
+      timingItem.setAccelerator(
+          KeyStroke.getKeyStroke(KeyEvent.VK_D, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
+      timingItem.addActionListener(e -> timingFrame.setVisible(!timingFrame.isVisible()));
+      viewMenu.add(timingItem);
+      viewMenu.addSeparator();
+
       JMenu themeMenu = new JMenu("Theme");
       ButtonGroup themeGroup = new ButtonGroup();
 
@@ -216,23 +270,29 @@ public class GuiMain {
       viewMenu.addSeparator();
       viewMenu.add(snapGridItem);
 
+      // --- NEW: Tools Menu ---
       JMenu toolsMenu = new JMenu("Tools");
+
       JMenuItem autoLayoutItem = new JMenuItem("Auto-Organize Circuit");
       autoLayoutItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_L, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
-
       autoLayoutItem.addActionListener(e -> {
-        // 1. Run the layout
         AutoLayout.organize(circuitPanel.getCircuit());
-
-        // 2. Force a repaint to show changes
         circuitPanel.repaint();
-
-        // 3. Save state to Undo history (Crucial!)
         circuitPanel.getInteraction().saveHistory();
       });
 
+      JMenuItem addProbeItem = new JMenuItem("Add Selected to Timing Diagram");
+      addProbeItem.setAccelerator(
+          KeyStroke.getKeyStroke(KeyEvent.VK_M, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
+      addProbeItem.addActionListener(e -> {
+        List<Component> selection = circuitPanel.getInteraction().getSelectedComponents();
+        addSelectionToTiming(selection);
+      });
+
       toolsMenu.add(autoLayoutItem);
+      toolsMenu.add(addProbeItem);
+
       JMenu simMenu = new JMenu("Simulation");
       JMenuItem startItem = new JMenuItem("Start");
       startItem.addActionListener(e -> simController.start());
@@ -265,7 +325,7 @@ public class GuiMain {
       menuBar.add(fileMenu);
       menuBar.add(editMenu);
       menuBar.add(viewMenu);
-      menuBar.add(toolsMenu);
+      menuBar.add(toolsMenu); // Tools Added
       menuBar.add(simMenu);
       menuBar.add(Box.createHorizontalGlue());
       zoomStatusLabel = new JLabel("Zoom: 100%  ");
@@ -301,7 +361,6 @@ public class GuiMain {
         }
       });
 
-      // --- Theme ---
       loadAndApplyTheme(SettingsManager.getThemeName());
 
       boolean isMax = SettingsManager.isMaximized();
@@ -310,22 +369,18 @@ public class GuiMain {
         frame.setSize(1280, 800);
         frame.setLocationRelativeTo(null);
       } else {
-        // Restore values
         int w = SettingsManager.getWindowWidth();
         int h = SettingsManager.getWindowHeight();
         int x = SettingsManager.getWindowX();
         int y = SettingsManager.getWindowY();
 
-        // SANITY CHECK 1: Detect "Glitch" Fullscreen
-        // If the saved size matches the screen size, but we are NOT maximised
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
         if (w >= screenSize.width && h >= screenSize.height) {
           w = 1280;
           h = 800;
-          x = -1; // Force re-center
+          x = -1;
         }
 
-        // SANITY CHECK 2: Minimum viable size
         if (w < 400)
           w = 1280;
         if (h < 300)
@@ -333,9 +388,6 @@ public class GuiMain {
 
         frame.setSize(w, h);
 
-        // SANITY CHECK 3: Positioning
-        // If x/y are missing (-1) OR exactly (0,0) (which is suspicious on Linux),
-        // center it.
         if (x == -1 || y == -1 || (x == 0 && y == 0)) {
           frame.setLocationRelativeTo(null);
         } else {
@@ -343,7 +395,6 @@ public class GuiMain {
         }
       }
 
-      // Show frame BEFORE maximizing to ensure decorations load
       frame.setVisible(true);
 
       if (isMax) {
@@ -352,6 +403,33 @@ public class GuiMain {
 
       circuitPanel.requestFocusInWindow();
     });
+  }
+
+  // --- NEW: Helper for Timing ---
+  private static void addSelectionToTiming(List<Component> selection) {
+    if (selection.isEmpty()) {
+      JOptionPane.showMessageDialog(frame, "Please select a component (Gate/Switch) to monitor.");
+      return;
+    }
+    boolean added = false;
+    for (Component c : selection) {
+      if (c.getOutputCount() > 0) {
+        Wire w = c.getOutputWire(0);
+        if (w != null) {
+          timingPanel.addMonitor(new SignalMonitor(
+              c.getName(),
+              w,
+              Theme.WIRE_ON,
+              timingPanel.getBufferSize()));
+          added = true;
+        }
+      }
+    }
+    if (added) {
+      timingFrame.setVisible(true);
+    } else {
+      JOptionPane.showMessageDialog(frame, "Selected components have no outputs to monitor.");
+    }
   }
 
   private static void loadAndApplyTheme(String t) {
@@ -369,6 +447,8 @@ public class GuiMain {
     SettingsManager.setDarkMode(Theme.isDarkMode);
     updateUIColors();
     circuitPanel.repaint();
+    if (timingPanel != null)
+      timingPanel.repaint();
   }
 
   private static void updateUIColors() {
@@ -389,7 +469,7 @@ public class GuiMain {
 
     if (menuBar != null) {
       menuBar.setBackground(Theme.isDarkMode ? Theme.PALETTE_BACKGROUND : null);
-      menuBar.setBorder(BorderFactory.createEmptyBorder(0, 0, 1, 0)); // Clean separator
+      menuBar.setBorder(BorderFactory.createEmptyBorder(0, 0, 1, 0));
 
       for (int i = 0; i < menuBar.getMenuCount(); i++) {
         JMenu m = menuBar.getMenu(i);
@@ -402,21 +482,18 @@ public class GuiMain {
     }
   }
 
-  // --- Recursive Menu Styler ---
   private static void styleMenu(JComponent item) {
     if (Theme.isDarkMode) {
       item.setBackground(Theme.PALETTE_BACKGROUND);
       item.setForeground(Theme.TEXT_COLOR);
       item.setOpaque(true);
 
-      // Fix the popup border/background
       if (item instanceof JMenu) {
         JPopupMenu popup = ((JMenu) item).getPopupMenu();
         popup.setBackground(Theme.PALETTE_BACKGROUND);
         popup.setBorder(BorderFactory.createLineBorder(Theme.BUTTON_BORDER));
       }
     } else {
-      // Restore default
       item.setBackground(null);
       item.setForeground(Color.BLACK);
       item.setOpaque(false);
@@ -428,7 +505,6 @@ public class GuiMain {
       }
     }
 
-    // Recurse into sub-items
     if (item instanceof JMenu) {
       for (java.awt.Component c : ((JMenu) item).getMenuComponents()) {
         if (c instanceof JComponent)
@@ -442,20 +518,16 @@ public class GuiMain {
     boolean isMaximized = (state & JFrame.MAXIMIZED_BOTH) == JFrame.MAXIMIZED_BOTH;
 
     if (!isMaximized) {
-      // Save actual position only if not maximized
       SettingsManager.setWindowBounds(
           frame.getX(), frame.getY(),
           frame.getWidth(), frame.getHeight(),
           false);
     } else {
-      // If maximised, save the flag, but reset w/h to safe defaults
-      // This prevents the "huge window" bug next time un-maximized
       SettingsManager.setWindowBounds(-1, -1, 1280, 800, true);
     }
     System.exit(0);
   }
 
-  // --- Helpers (unchanged) ---
   private static void addSpeedItem(JMenu menu, ButtonGroup group, String label, int delayMs, boolean selected) {
     JRadioButtonMenuItem item = new JRadioButtonMenuItem(label);
     item.setSelected(selected);
@@ -489,6 +561,7 @@ public class GuiMain {
     }
   }
 
+  // --- PRESERVED ORIGINAL LOAD LOGIC ---
   private static void performLoad() {
     JFileChooser fc = new JFileChooser();
     fc.setFileFilter(new FileNameExtensionFilter("Logik Files (.lgk)", "lgk"));
@@ -500,6 +573,11 @@ public class GuiMain {
         for (CustomComponent cc : result.customTools())
           palette.addCustomTool(cc);
         simController.setCircuit(result.circuit());
+
+        // Only added this line to reset timing
+        if (timingPanel != null)
+          timingPanel.clear();
+
         circuitPanel.repaint();
         JOptionPane.showMessageDialog(frame, "Loaded successfully!");
       } catch (Exception ex) {
