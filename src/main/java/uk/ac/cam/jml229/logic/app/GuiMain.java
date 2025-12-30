@@ -75,6 +75,16 @@ public class GuiMain {
         public void windowClosing(WindowEvent e) {
           saveSettingsAndExit();
         }
+
+        @Override
+        public void windowOpened(WindowEvent e) {
+          // Collapse the timing panel immediately after the window opens
+          SwingUtilities.invokeLater(() -> {
+            if (editorSplit != null) {
+              editorSplit.setDividerLocation(1.0);
+            }
+          });
+        }
       });
 
       // --- Init Core Components ---
@@ -125,7 +135,7 @@ public class GuiMain {
       editorSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, circuitPanel, timingContainer);
       editorSplit.setUI(new BasicSplitPaneUI());
       editorSplit.setBorder(null);
-      editorSplit.setResizeWeight(0.8);
+      editorSplit.setResizeWeight(1.0);
       editorSplit.setContinuousLayout(true);
       editorSplit.setBackground(Theme.PALETTE_BACKGROUND);
 

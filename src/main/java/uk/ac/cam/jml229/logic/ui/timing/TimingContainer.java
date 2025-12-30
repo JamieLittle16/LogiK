@@ -17,6 +17,7 @@ public class TimingContainer extends JPanel {
   // Updated Constructor: Accepts a callback to close itself
   public TimingContainer(Runnable onClose) {
     setLayout(new BorderLayout());
+    setMinimumSize(new Dimension(0, 0));
 
     timingPanel = new TimingPanel();
 
