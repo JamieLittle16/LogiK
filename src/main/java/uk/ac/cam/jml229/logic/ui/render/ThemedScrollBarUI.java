@@ -27,7 +27,14 @@ public class ThemedScrollBarUI extends BasicScrollBarUI {
     Graphics2D g2 = (Graphics2D) g.create();
     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-    g2.setColor(Theme.SCROLL_THUMB);
+    // --- UPDATED: Use Hover Color if active ---
+    if (isThumbRollover()) {
+      g2.setColor(Theme.SCROLL_THUMB_HOVER);
+    } else {
+      g2.setColor(Theme.SCROLL_THUMB);
+    }
+    // ------------------------------------------
+
     // Draw rounded thumb
     g2.fillRoundRect(thumbBounds.x + 2, thumbBounds.y + 2,
         thumbBounds.width - 4, thumbBounds.height - 4,

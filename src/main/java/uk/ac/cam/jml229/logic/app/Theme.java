@@ -15,7 +15,7 @@ public class Theme {
   public static Color GRID_MAJOR = new Color(220, 220, 220);
   public static Color GRID_MINOR = new Color(240, 240, 240);
   public static Color TEXT_COLOR = Color.BLACK;
-  public static Color TEXT_INVERTED = Color.WHITE; // Text on dark headers
+  public static Color TEXT_INVERTED = Color.WHITE;
 
   // --- Aliases ---
   public static Color GRID_COLOR = GRID_MAJOR;
@@ -35,20 +35,17 @@ public class Theme {
 
   public static Color GENERIC_BOX_FILL = new Color(230, 230, 230);
   public static Color GENERIC_HEADER_FILL = new Color(100, 100, 255);
-
-  // --- Switch Styling ---
   public static Color SWITCH_FILL = new Color(200, 200, 200);
+
   public static Color SWITCH_ON = new Color(0, 150, 0);
   public static Color SWITCH_OFF = new Color(220, 220, 220);
   public static Color SWITCH_SHADOW = new Color(50, 50, 50, 100);
   public static Color SWITCH_HIGHLIGHT = new Color(255, 255, 255, 100);
 
-  // --- LED / Probe Styling ---
   public static Color LED_ON = new Color(255, 220, 0);
   public static Color LED_OFF = new Color(50, 50, 50);
   public static Color LED_REFLECTION = new Color(255, 255, 255, 100);
 
-  // --- 7-Seg / Hex Display Styling ---
   public static Color DISPLAY_HOUSING = new Color(20, 20, 20);
   public static Color DISPLAY_SCREEN = new Color(40, 40, 40);
   public static Color DISPLAY_BORDER = Color.GRAY;
@@ -69,6 +66,8 @@ public class Theme {
   public static Color BUTTON_HOVER = new Color(200, 225, 255);
   public static Color SCROLL_TRACK = new Color(245, 245, 245);
   public static Color SCROLL_THUMB = new Color(200, 200, 200);
+  // --- NEW: Scroll Hover ---
+  public static Color SCROLL_THUMB_HOVER = new Color(180, 180, 180);
 
   public static void loadTheme(String themeName) {
     Properties props = new Properties();
@@ -133,6 +132,10 @@ public class Theme {
     SCROLL_TRACK = parseColor(p, "scrollTrack", defScrollTrack);
     SCROLL_THUMB = parseColor(p, "scrollThumb", defScrollThumb);
 
+    // --- Parse Hover with Default ---
+    Color defScrollHover = isDarkMode ? new Color(120, 120, 120) : new Color(160, 160, 160);
+    SCROLL_THUMB_HOVER = parseColor(p, "scrollThumbHover", defScrollHover);
+
     SWITCH_ON = parseColor(p, "switchOn", WIRE_ON);
     SWITCH_OFF = parseColor(p, "switchOff", SWITCH_OFF);
 
@@ -176,20 +179,20 @@ public class Theme {
       GRID_MAJOR = new Color(50, 50, 50);
       GRID_MINOR = new Color(40, 40, 40);
       TEXT_COLOR = new Color(220, 220, 220);
-      TEXT_INVERTED = new Color(220, 220, 220); // White text on dark BG
+      TEXT_INVERTED = new Color(220, 220, 220);
 
       WIRE_ON = new Color(46, 204, 113);
       WIRE_OFF = new Color(85, 90, 100);
       WIRE_SELECTED = new Color(52, 152, 219);
-      WIRE_HANDLE_FILL = new Color(45, 45, 48); // Dark handle
+      WIRE_HANDLE_FILL = new Color(45, 45, 48);
 
       SWITCH_ON = new Color(46, 204, 113);
-      SWITCH_OFF = new Color(80, 80, 80); // Darker grey switch
+      SWITCH_OFF = new Color(80, 80, 80);
 
       COMP_BORDER = new Color(120, 120, 120);
       COMP_FILL_GRADIENT_1 = new Color(45, 45, 48);
       COMP_FILL_GRADIENT_2 = new Color(37, 37, 38);
-      GATE_BUBBLE_FILL = new Color(45, 45, 48); // Matches component body
+      GATE_BUBBLE_FILL = new Color(45, 45, 48);
 
       SELECTION_BORDER = new Color(52, 152, 219);
       PIN_COLOR = new Color(100, 200, 255);
@@ -206,12 +209,12 @@ public class Theme {
 
       SCROLL_TRACK = new Color(37, 37, 38);
       SCROLL_THUMB = new Color(80, 80, 80);
+      SCROLL_THUMB_HOVER = new Color(120, 120, 120); // Lighter grey
 
       GENERIC_BOX_FILL = COMP_FILL_GRADIENT_1;
       GENERIC_HEADER_FILL = COMP_BORDER;
       SWITCH_FILL = COMP_FILL_GRADIENT_2;
 
-      // Displays
       DISPLAY_HOUSING = new Color(20, 20, 20);
       DISPLAY_SCREEN = new Color(30, 30, 30);
       DISPLAY_BORDER = new Color(80, 80, 80);
@@ -232,7 +235,7 @@ public class Theme {
       WIRE_HANDLE_FILL = Color.WHITE;
 
       SWITCH_ON = new Color(0, 150, 0);
-      SWITCH_OFF = new Color(220, 220, 220); // Light grey switch
+      SWITCH_OFF = new Color(220, 220, 220);
 
       COMP_BORDER = new Color(50, 50, 50);
       COMP_FILL_GRADIENT_1 = new Color(225, 245, 255);
@@ -254,12 +257,12 @@ public class Theme {
 
       SCROLL_TRACK = PALETTE_BACKGROUND;
       SCROLL_THUMB = new Color(200, 200, 210);
+      SCROLL_THUMB_HOVER = new Color(160, 160, 170); // Darker grey
 
       GENERIC_BOX_FILL = new Color(235, 235, 235);
       GENERIC_HEADER_FILL = new Color(100, 100, 255);
       SWITCH_FILL = new Color(220, 220, 220);
 
-      // Displays
       DISPLAY_HOUSING = new Color(20, 20, 20);
       DISPLAY_SCREEN = new Color(40, 40, 40);
       DISPLAY_BORDER = Color.GRAY;
