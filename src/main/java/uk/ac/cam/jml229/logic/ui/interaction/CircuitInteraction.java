@@ -209,10 +209,30 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     menu.add(delItem);
 
     // Style Items
-    for (java.awt.Component c : menu.getComponents()) {
-      if (c instanceof JMenuItem) {
-        c.setBackground(menu.getBackground());
-        c.setForeground(Theme.TEXT_COLOR);
+    if (Theme.isDarkMode) {
+      menu.setBackground(Theme.PALETTE_BACKGROUND);
+      menu.setBorder(BorderFactory.createLineBorder(Theme.BUTTON_BORDER));
+
+      for (java.awt.Component c : menu.getComponents()) {
+        if (c instanceof JMenuItem) {
+          c.setBackground(Theme.PALETTE_BACKGROUND);
+          c.setForeground(Theme.TEXT_COLOR);
+          ((JComponent) c).setOpaque(true);
+          // Remove the white "gutter" on the left
+          ((JComponent) c).setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        }
+        if (c instanceof JPopupMenu.Separator) {
+          c.setBackground(Theme.PALETTE_BACKGROUND);
+          c.setForeground(Theme.GRID_MAJOR);
+        }
+      }
+    } else {
+      // Standard Light Theme Styling
+      menu.setBackground(Color.WHITE);
+      menu.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+      for (java.awt.Component c : menu.getComponents()) {
+        c.setBackground(Color.WHITE);
+        c.setForeground(Color.BLACK);
       }
     }
 
