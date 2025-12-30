@@ -1,7 +1,6 @@
 package uk.ac.cam.jml229.logic.components;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -12,19 +11,27 @@ import uk.ac.cam.jml229.logic.io.SettingsManager;
 public abstract class Component {
   private String name;
   private int x, y;
-
-  // 0 = East (Default), 1 = South, 2 = West, 3 = North
   private int rotation = 0;
 
-  // Dynamic Inputs and Outputs ---
+  // --- Per-Component Delay Support ---
+  // null = use global default. Integer = specific override.
+  private Integer customDelay = null;
+
   private final List<Wire> outputWires = new ArrayList<>();
   private final List<Boolean> inputs = new ArrayList<>();
-
-  // Default input count (can be changed by subclasses)
   private int inputCount = 0;
 
   public Component(String name) {
     this.name = name;
+  }
+
+  // --- Delay Accessors ---
+  public void setCustomDelay(Integer delay) {
+    this.customDelay = delay;
+  }
+
+  public Integer getCustomDelay() {
+    return customDelay;
   }
 
   public void rotate() {
@@ -42,44 +49,34 @@ public abstract class Component {
   public void setName(String name) {
     this.name = name;
   }
-  // ==========================================
-  // INPUT MANAGEMENT
-  // ==========================================
 
+  // --- Logic with Delay ---
   public void setInput(int index, boolean state) {
-    // Auto-grow inputs list to handle the index
     while (inputs.size() <= index) {
       inputs.add(false);
     }
 
-    // Only update if value actually changed (Optimisation)
     if (inputs.get(index) != state) {
       inputs.set(index, state);
 
-      // Propagation Delay Logic ---
       if (SettingsManager.isPropagationDelayEnabled()) {
-        // Schedule the update for later
-        Simulator.schedule(this::update, SettingsManager.getGateDelay());
+        // Priority: Custom Delay -> Global Delay
+        int d = (customDelay != null) ? customDelay : SettingsManager.getGateDelay();
+        Simulator.schedule(this::update, d);
       } else {
-        // Standard instant update
         update();
       }
     }
   }
 
   public boolean getInput(int index) {
-    if (index >= 0 && index < inputs.size()) {
+    if (index >= 0 && index < inputs.size())
       return inputs.get(index);
-    }
-    return false; // Default to low if unconnected
+    return false;
   }
 
-  /**
-   * Subclasses (like AndGate) should set this in their constructor.
-   */
   protected void setInputCount(int count) {
     this.inputCount = count;
-    // Pre-fill list
     while (inputs.size() < count)
       inputs.add(false);
   }
@@ -88,11 +85,6 @@ public abstract class Component {
     return inputCount;
   }
 
-  // ==========================================
-  // OUTPUT MANAGEMENT
-  // ==========================================
-
-  // --- Backward Compatibility (Proxy methods) ---
   public Wire getOutputWire() {
     return getOutputWire(0);
   }
@@ -101,18 +93,15 @@ public abstract class Component {
     setOutputWire(0, w);
   }
 
-  // --- Multi-Output Support ---
   public Wire getOutputWire(int index) {
-    if (index >= 0 && index < outputWires.size()) {
+    if (index >= 0 && index < outputWires.size())
       return outputWires.get(index);
-    }
     return null;
   }
 
   public void setOutputWire(int index, Wire w) {
-    while (outputWires.size() <= index) {
+    while (outputWires.size() <= index)
       outputWires.add(null);
-    }
     outputWires.set(index, w);
   }
 
@@ -121,16 +110,10 @@ public abstract class Component {
   }
 
   public int getOutputCount() {
-    // Default to 1 output pin if a wire exists, or 0 if empty.
-    // CustomComponents will override this to return specific numbers.
     if (outputWires.isEmpty())
       return 1;
     return Math.max(1, outputWires.size());
   }
-
-  // ==========================================
-  // CORE LOGIC
-  // ==========================================
 
   public String getName() {
     return name;
@@ -151,14 +134,12 @@ public abstract class Component {
 
   public abstract void update();
 
-  /**
-   * Creates a fresh copy of this component using Reflection.
-   */
   public Component makeCopy() {
     try {
       Component copy = this.getClass().getConstructor(String.class).newInstance(this.name);
-      // Copy basic properties if needed (like input count)
       copy.setInputCount(this.getInputCount());
+      // Copy delay setting
+      copy.setCustomDelay(this.customDelay);
       return copy;
     } catch (Exception e) {
       throw new RuntimeException("Failed to copy component: " + name, e);

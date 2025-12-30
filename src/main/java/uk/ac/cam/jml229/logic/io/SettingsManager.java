@@ -6,7 +6,6 @@ public class SettingsManager {
 
   private static final Preferences prefs = Preferences.userNodeForPackage(SettingsManager.class);
 
-  // keys
   private static final String KEY_THEME = "theme_name";
   private static final String KEY_DARK_MODE = "dark_mode";
   private static final String KEY_SNAP = "snap_to_grid";
@@ -20,7 +19,6 @@ public class SettingsManager {
   private static final String KEY_PROP_DELAY_ENABLED = "prop_delay_enabled";
   private static final String KEY_GATE_DELAY = "gate_delay";
 
-  // defaults
   private static final String DEFAULT_THEME = "Default Light";
 
   public static boolean isPropagationDelayEnabled() {
@@ -63,7 +61,6 @@ public class SettingsManager {
     prefs.putBoolean(KEY_SNAP, snap);
   }
 
-  // Window bounds
   public static int getWindowX() {
     return prefs.getInt(KEY_WIN_X, -1);
   }

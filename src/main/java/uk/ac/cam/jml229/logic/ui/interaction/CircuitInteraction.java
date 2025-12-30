@@ -176,6 +176,28 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     });
     menu.add(timingItem);
 
+    JMenuItem delayItem = new JMenuItem("Set Propagation Delay...");
+    delayItem.addActionListener(ev -> {
+      String input = JOptionPane.showInputDialog(panel, "Enter delay in ticks (Leave empty for default):", "Set Delay",
+          JOptionPane.QUESTION_MESSAGE);
+      if (input != null) {
+        Integer val = null;
+        if (!input.trim().isEmpty()) {
+          try {
+            val = Integer.parseInt(input.trim());
+            if (val < 0)
+              val = 0;
+          } catch (NumberFormatException ex) {
+            return;
+          }
+        }
+        for (Component c : selectedComponents) {
+          c.setCustomDelay(val);
+        }
+      }
+    });
+    menu.add(delayItem);
+
     menu.addSeparator();
 
     JMenuItem copyItem = new JMenuItem("Copy");

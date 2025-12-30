@@ -13,7 +13,7 @@ import uk.ac.cam.jml229.logic.core.Wire;
 
 public class StorageManager {
 
-  private static final int CURRENT_VERSION = 5;
+  private static final int CURRENT_VERSION = 6;
 
   public static void save(File file, Circuit circuit, List<Component> paletteTools) throws IOException {
     try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
@@ -159,6 +159,10 @@ public class StorageManager {
         extra += " INPUTS:" + c.getInputCount();
       }
 
+      if (c.getCustomDelay() != null) {
+        extra += " DELAY:" + c.getCustomDelay();
+      }
+
       writer.printf("COMP %s %d %d %d %d%s%n", type, id, c.getX(), c.getY(), c.getRotation(), extra);
     }
 
@@ -224,16 +228,25 @@ public class StorageManager {
           }
         }
 
-        // Scan remaining parts for "INPUTS:n" tag
-        if (c instanceof LogicGate) {
-          for (String part : parts) {
-            if (part.startsWith("INPUTS:")) {
-              try {
-                int inputs = Integer.parseInt(part.substring(7));
-                ((LogicGate) c).resizeInputs(inputs);
-              } catch (NumberFormatException e) {
-                // ignore corrupt tag
-              }
+        for (String part : parts) {
+
+          // Handle INPUTS (Specific to LogicGates)
+          if (part.startsWith("INPUTS:") && c instanceof LogicGate) {
+            try {
+              int inputs = Integer.parseInt(part.substring(7));
+              ((LogicGate) c).resizeInputs(inputs);
+            } catch (NumberFormatException e) {
+              // ignore
+            }
+          }
+
+          // Handle DELAY (Applies to ANY component)
+          if (part.startsWith("DELAY:")) {
+            try {
+              int d = Integer.parseInt(part.substring(6));
+              c.setCustomDelay(d);
+            } catch (NumberFormatException e) {
+              // ignore
             }
           }
         }
@@ -247,7 +260,6 @@ public class StorageManager {
   }
 
   private static void parseWire(String line, Circuit circuit, Map<Integer, Component> idMap) {
-    // ... (rest of file remains unchanged) ...
     try {
       Pattern p = Pattern.compile("WIRE (\\d+):(\\d+) (\\d+):(\\d+)(?: \\[(.*)\\])?");
       Matcher m = p.matcher(line);
