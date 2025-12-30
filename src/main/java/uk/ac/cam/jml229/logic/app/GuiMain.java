@@ -271,11 +271,11 @@ public class GuiMain {
       viewMenu.add(snapGridItem);
 
       JMenu toolsMenu = new JMenu("Tools");
-      JMenuItem autoLayoutItem = new JMenuItem("Auto-Organize Circuit");
+      JMenuItem autoLayoutItem = new JMenuItem("Auto-Organise Circuit");
       autoLayoutItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_L, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       autoLayoutItem.addActionListener(e -> {
-        AutoLayout.organize(circuitPanel.getCircuit());
+        AutoLayout.organise(circuitPanel.getCircuit());
         circuitPanel.repaint();
         circuitPanel.getInteraction().saveHistory();
       });

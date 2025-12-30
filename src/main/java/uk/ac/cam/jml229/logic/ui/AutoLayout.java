@@ -13,7 +13,7 @@ public class AutoLayout {
   private static final int GRID_SIZE = 20; // 20px grid
   private static final int ATTEMPTS = 100; // Physics iterations
 
-  public static void organize(Circuit circuit) {
+  public static void organise(Circuit circuit) {
     // Untangle Components (Force-Directed Layout)
     untangleComponents(circuit);
 
