@@ -148,9 +148,19 @@ public class GuiMain {
       ButtonGroup themeGroup = new ButtonGroup();
 
       String[] builtIns = {
-          "Default Light", "Default Dark",
-          "Dracula", "Solarized Light", "Monokai",
-          "GitHub Light", "Nord", "Blueprint", "Cyberpunk", "Gruvbox Dark"
+          "Default Light",
+          "Default Dark",
+          "One Dark",
+          "Catppuccin Mocha",
+          "High Contrast",
+          "Dracula",
+          "Monokai",
+          "Nord",
+          "Solarized Light",
+          "GitHub Light",
+          "Blueprint",
+          "Cyberpunk",
+          "Gruvbox Dark"
       };
 
       List<String> allThemes = new ArrayList<>(List.of(builtIns));
