@@ -25,7 +25,7 @@ import uk.ac.cam.jml229.logic.ui.timing.SignalMonitor;
 import uk.ac.cam.jml229.logic.ui.FlatIcons;
 import uk.ac.cam.jml229.logic.ui.SettingsDialog;
 import uk.ac.cam.jml229.logic.ui.AppMenuBar;
-import uk.ac.cam.jml229.logic.ui.timing.TimingWindow;
+import uk.ac.cam.jml229.logic.ui.timing.TimingContainer;
 
 public class GuiMain {
 
@@ -38,10 +38,13 @@ public class GuiMain {
   private static JFrame frame;
 
   // --- UI Elements ---
-  private static TimingWindow timingWindow; // Refactored Window
+  private static TimingContainer timingContainer;
   private static JScrollPane scrollPalette;
   private static AppMenuBar appMenuBar;
-  private static JSplitPane splitPane;
+
+  // Two Split Panes for Layout
+  private static JSplitPane mainSplit; // Horizontal: Palette (Left) vs Editor (Right)
+  private static JSplitPane editorSplit; // Vertical: Circuit (Top) vs Timing (Bottom)
 
   private static SimulationController simController;
 
@@ -82,13 +85,13 @@ public class GuiMain {
       palette = new ComponentPalette(interaction, renderer);
       interaction.setPalette(palette);
 
-      // --- Init Timing Window (Using new Class) ---
-      timingWindow = new TimingWindow();
+      // --- Init Timing Panel (Docked) ---
+      timingContainer = new TimingContainer(GuiMain::toggleTimingPanel);
 
       // --- Simulation Controller ---
       simController = new SimulationController(circuitPanel.getCircuit(), () -> {
         circuitPanel.repaint();
-        timingWindow.tick();
+        timingContainer.tick();
       });
       simController.start();
 
@@ -102,30 +105,40 @@ public class GuiMain {
           frame,
           circuitPanel,
           simController,
-          timingWindow,
+          timingContainer,
           GuiMain::loadAndApplyTheme,
           () -> new SettingsDialog(frame).setVisible(true),
           GuiMain::performSave,
-          GuiMain::performLoad);
+          GuiMain::performLoad,
+          GuiMain::toggleTimingPanel);
       frame.setJMenuBar(appMenuBar);
 
       circuitPanel.setOnZoomChanged(scale -> appMenuBar.updateZoomLabel(scale));
 
-      // --- Main Layout ---
+      // --- Main Layout Construction ---
       scrollPalette = new JScrollPane(palette);
       scrollPalette.setBorder(null);
       scrollPalette.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
       scrollPalette.getViewport().setBackground(Theme.PALETTE_BACKGROUND);
 
-      splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, scrollPalette, circuitPanel);
-      splitPane.setUI(new BasicSplitPaneUI());
-      splitPane.setBorder(null);
-      splitPane.setDividerLocation(130);
-      splitPane.setContinuousLayout(true);
-      splitPane.setResizeWeight(0.0);
-      splitPane.setBackground(Theme.PALETTE_BACKGROUND);
+      // Vertical Split: Circuit (Top) vs Timing (Bottom)
+      editorSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, circuitPanel, timingContainer);
+      editorSplit.setUI(new BasicSplitPaneUI());
+      editorSplit.setBorder(null);
+      editorSplit.setResizeWeight(0.8);
+      editorSplit.setContinuousLayout(true);
+      editorSplit.setBackground(Theme.PALETTE_BACKGROUND);
 
-      frame.add(splitPane);
+      // Horizontal Split: Palette (Left) vs Editor Area (Right)
+      mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, scrollPalette, editorSplit);
+      mainSplit.setUI(new BasicSplitPaneUI());
+      mainSplit.setBorder(null);
+      mainSplit.setDividerLocation(130);
+      mainSplit.setContinuousLayout(true);
+      mainSplit.setResizeWeight(0.0);
+      mainSplit.setBackground(Theme.PALETTE_BACKGROUND);
+
+      frame.add(mainSplit);
 
       circuitPanel.addKeyListener(new KeyAdapter() {
         @Override
@@ -147,11 +160,27 @@ public class GuiMain {
       }
 
       frame.setVisible(true);
+
+      // Start with Timing Panel collapsed (Hidden)
+      SwingUtilities.invokeLater(() -> editorSplit.setDividerLocation(1.0));
+
       circuitPanel.requestFocusInWindow();
     });
   }
 
   // --- Helper Methods ---
+
+  private static void toggleTimingPanel() {
+    int height = editorSplit.getHeight();
+    int loc = editorSplit.getDividerLocation();
+
+    // If divider is > 90% down, assume it's hidden/collapsed
+    if (loc >= height - 50) {
+      editorSplit.setDividerLocation(0.7); // Show (30% height)
+    } else {
+      editorSplit.setDividerLocation(1.0); // Hide (collapse to bottom)
+    }
+  }
 
   private static void configureWindowSize() {
     int w = SettingsManager.getWindowWidth();
@@ -188,15 +217,18 @@ public class GuiMain {
       if (c.getOutputCount() > 0) {
         Wire w = c.getOutputWire(0);
         if (w != null) {
-          timingWindow.addMonitor(new SignalMonitor(
-              c.getName(), w, Theme.WIRE_ON, timingWindow.getBufferSize()));
+          timingContainer.addMonitor(new SignalMonitor(
+              c.getName(), w, Theme.WIRE_ON, timingContainer.getBufferSize()));
           added = true;
         }
       }
     }
     if (added) {
-      timingWindow.setVisible(true);
-      SwingUtilities.invokeLater(() -> timingWindow.scrollToPresent());
+      // Auto-open if hidden
+      if (editorSplit.getDividerLocation() >= editorSplit.getHeight() - 50) {
+        editorSplit.setDividerLocation(0.7);
+      }
+      SwingUtilities.invokeLater(() -> timingContainer.scrollToPresent());
     } else {
       JOptionPane.showMessageDialog(frame, "Selected components have no outputs to monitor.");
     }
@@ -222,7 +254,7 @@ public class GuiMain {
   private static void updateUIColors() {
     circuitPanel.updateTheme();
     palette.updateTheme();
-    timingWindow.updateTheme(); // Updated via class method
+    timingContainer.updateTheme();
 
     if (Theme.isDarkMode) {
       UIManager.put("CheckBoxMenuItem.checkIcon", new FlatIcons.CheckIcon());
@@ -239,9 +271,14 @@ public class GuiMain {
       scrollPalette.getHorizontalScrollBar().setUI(new ThemedScrollBarUI());
     }
 
-    if (splitPane != null) {
-      splitPane.setBackground(Theme.PALETTE_BACKGROUND);
-      splitPane.repaint();
+    if (mainSplit != null) {
+      mainSplit.setBackground(Theme.PALETTE_BACKGROUND);
+      mainSplit.repaint();
+    }
+
+    if (editorSplit != null) {
+      editorSplit.setBackground(Theme.PALETTE_BACKGROUND);
+      editorSplit.repaint();
     }
 
     if (appMenuBar != null) {
@@ -289,7 +326,7 @@ public class GuiMain {
         for (CustomComponent cc : result.customTools())
           palette.addCustomTool(cc);
         simController.setCircuit(result.circuit());
-        timingWindow.clear();
+        timingContainer.clear();
         circuitPanel.repaint();
         JOptionPane.showMessageDialog(frame, "Loaded successfully!");
       } catch (Exception ex) {

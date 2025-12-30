@@ -7,20 +7,16 @@ import java.awt.event.MouseEvent;
 
 import uk.ac.cam.jml229.logic.app.Theme;
 import uk.ac.cam.jml229.logic.ui.render.ThemedScrollBarUI;
-import uk.ac.cam.jml229.logic.ui.timing.SignalMonitor;
-import uk.ac.cam.jml229.logic.ui.timing.TimingPanel;
 
-public class TimingWindow extends JFrame {
+public class TimingContainer extends JPanel {
 
   private final TimingPanel timingPanel;
   private final JScrollPane scrollPane;
   private final JToolBar toolBar;
 
-  public TimingWindow() {
-    super("Timing Diagram");
-    setSize(900, 500);
+  // Updated Constructor: Accepts a callback to close itself
+  public TimingContainer(Runnable onClose) {
     setLayout(new BorderLayout());
-    setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 
     timingPanel = new TimingPanel();
 
@@ -42,6 +38,10 @@ public class TimingWindow extends JFrame {
     JButton skipBtn = addButton("Present", e -> scrollToPresent());
     skipBtn.setToolTipText("Skip to Present");
 
+    toolBar.add(Box.createHorizontalGlue()); // Pushes everything to the right
+    JButton closeBtn = addButton(" X ", e -> onClose.run());
+    closeBtn.setToolTipText("Close Timing Diagram");
+
     add(toolBar, BorderLayout.NORTH);
 
     // --- Build ScrollPane ---
@@ -59,20 +59,18 @@ public class TimingWindow extends JFrame {
 
     add(scrollPane, BorderLayout.CENTER);
 
-    updateTheme(); // Apply initial theme
+    updateTheme();
   }
 
   // --- Public API ---
 
   public void addMonitor(SignalMonitor m) {
     timingPanel.addMonitor(m);
-    if (!isVisible())
-      setVisible(true);
     SwingUtilities.invokeLater(this::scrollToPresent);
   }
 
   public void tick() {
-    if (isVisible())
+    if (isShowing())
       timingPanel.tick();
   }
 
@@ -89,12 +87,11 @@ public class TimingWindow extends JFrame {
   }
 
   public void updateTheme() {
-    if (isVisible())
+    if (getParent() != null)
       SwingUtilities.updateComponentTreeUI(this);
 
     timingPanel.updateTheme();
 
-    // Update ScrollPane parts
     scrollPane.getViewport().setBackground(Theme.BACKGROUND);
     scrollPane.getVerticalScrollBar().setUI(new ThemedScrollBarUI());
     scrollPane.getHorizontalScrollBar().setUI(new ThemedScrollBarUI());
@@ -102,7 +99,6 @@ public class TimingWindow extends JFrame {
     updateCorner(ScrollPaneConstants.UPPER_LEFT_CORNER);
     updateCorner(ScrollPaneConstants.LOWER_LEFT_CORNER);
 
-    // Update Toolbar
     toolBar.setBackground(Theme.PALETTE_BACKGROUND);
     for (Component c : toolBar.getComponents()) {
       if (c instanceof JButton) {
@@ -122,7 +118,6 @@ public class TimingWindow extends JFrame {
   private JButton addButton(String text, java.awt.event.ActionListener action) {
     JButton btn = new JButton(text);
     btn.addActionListener(action);
-    // Add hover effect
     btn.addMouseListener(new MouseAdapter() {
       public void mouseEntered(MouseEvent e) {
         btn.setBackground(Theme.BUTTON_HOVER);

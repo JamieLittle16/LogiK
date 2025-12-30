@@ -11,45 +11,45 @@ import java.util.function.Consumer;
 import uk.ac.cam.jml229.logic.app.Theme;
 import uk.ac.cam.jml229.logic.io.SettingsManager;
 import uk.ac.cam.jml229.logic.ui.panels.CircuitPanel;
-import uk.ac.cam.jml229.logic.ui.SimulationController;
-import uk.ac.cam.jml229.logic.ui.AutoLayout;
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.core.Wire;
 import uk.ac.cam.jml229.logic.ui.timing.SignalMonitor;
-import uk.ac.cam.jml229.logic.ui.timing.TimingWindow;
+import uk.ac.cam.jml229.logic.ui.timing.TimingContainer;
 
 public class AppMenuBar extends JMenuBar {
 
   private final JFrame parentFrame;
   private final CircuitPanel circuitPanel;
   private final SimulationController simController;
-
-  // Changed: Now uses the high-level Window class
-  private final TimingWindow timingWindow;
+  private final TimingContainer timingContainer;
 
   private final Consumer<String> themeCallback;
   private final Runnable settingsCallback;
   private final Runnable saveCallback;
   private final Runnable loadCallback;
+  private final Runnable toggleTimingCallback;
+
   private final JLabel zoomStatusLabel;
 
   public AppMenuBar(JFrame parentFrame,
       CircuitPanel circuitPanel,
       SimulationController simController,
-      TimingWindow timingWindow, // <--- Updated type
+      TimingContainer timingContainer,
       Consumer<String> themeCallback,
       Runnable settingsCallback,
       Runnable saveCallback,
-      Runnable loadCallback) {
+      Runnable loadCallback,
+      Runnable toggleTimingCallback) {
 
     this.parentFrame = parentFrame;
     this.circuitPanel = circuitPanel;
     this.simController = simController;
-    this.timingWindow = timingWindow;
+    this.timingContainer = timingContainer;
     this.themeCallback = themeCallback;
     this.settingsCallback = settingsCallback;
     this.saveCallback = saveCallback;
     this.loadCallback = loadCallback;
+    this.toggleTimingCallback = toggleTimingCallback;
 
     this.zoomStatusLabel = new JLabel("Zoom: 100%  ");
     this.zoomStatusLabel.setForeground(Color.GRAY);
@@ -85,12 +85,9 @@ public class AppMenuBar extends JMenuBar {
 
     // --- VIEW ---
     JMenu viewMenu = new JMenu("View");
-    addItem(viewMenu, "Show Timing Diagram", KeyEvent.VK_D, e -> {
-      boolean visible = !timingWindow.isVisible();
-      timingWindow.setVisible(visible);
-      if (visible)
-        SwingUtilities.invokeLater(timingWindow::scrollToPresent);
-    });
+
+    addItem(viewMenu, "Toggle Timing Diagram", KeyEvent.VK_D, e -> toggleTimingCallback.run());
+
     viewMenu.addSeparator();
 
     JMenu themeMenu = new JMenu("Theme");
@@ -229,14 +226,17 @@ public class AppMenuBar extends JMenuBar {
       if (c.getOutputCount() > 0) {
         Wire w = c.getOutputWire(0);
         if (w != null) {
-          timingWindow.addMonitor(new SignalMonitor(c.getName(), w, Theme.WIRE_ON, timingWindow.getBufferSize()));
+          timingContainer.addMonitor(new SignalMonitor(c.getName(), w, Theme.WIRE_ON, timingContainer.getBufferSize()));
           added = true;
         }
       }
     }
     if (added) {
-      timingWindow.setVisible(true);
-      SwingUtilities.invokeLater(timingWindow::scrollToPresent);
+      // Logic for auto-showing the docked panel
+      if (!timingContainer.isShowing()) {
+        toggleTimingCallback.run();
+      }
+      SwingUtilities.invokeLater(timingContainer::scrollToPresent);
     } else {
       JOptionPane.showMessageDialog(parentFrame, "Selected components have no outputs to monitor.");
     }
