@@ -224,6 +224,16 @@ public class GuiMain {
       JMenuItem timingItem = new JMenuItem("Show Timing Diagram");
       timingItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_D, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
+
+      // Skips to present on open
+      timingItem.addActionListener(e -> {
+        boolean visible = !timingFrame.isVisible();
+        timingFrame.setVisible(visible);
+        if (visible) {
+          SwingUtilities.invokeLater(() -> timingPanel.scrollToPresent());
+        }
+      });
+
       timingItem.addActionListener(e -> timingFrame.setVisible(!timingFrame.isVisible()));
       viewMenu.add(timingItem);
       viewMenu.addSeparator();
@@ -499,6 +509,7 @@ public class GuiMain {
     }
     if (added) {
       timingFrame.setVisible(true);
+      SwingUtilities.invokeLater(() -> timingPanel.scrollToPresent());
     } else {
       JOptionPane.showMessageDialog(frame, "Selected components have no outputs to monitor.");
     }
