@@ -14,7 +14,6 @@ public class TimingContainer extends JPanel {
   private final JScrollPane scrollPane;
   private final JToolBar toolBar;
 
-  // Updated Constructor: Accepts a callback to close itself
   public TimingContainer(Runnable onClose) {
     setLayout(new BorderLayout());
     setMinimumSize(new Dimension(0, 0));
@@ -39,7 +38,7 @@ public class TimingContainer extends JPanel {
     JButton skipBtn = addButton("Present", e -> scrollToPresent());
     skipBtn.setToolTipText("Skip to Present");
 
-    toolBar.add(Box.createHorizontalGlue()); // Pushes everything to the right
+    toolBar.add(Box.createHorizontalGlue());
     JButton closeBtn = addButton(" X ", e -> onClose.run());
     closeBtn.setToolTipText("Close Timing Diagram");
 
@@ -53,10 +52,17 @@ public class TimingContainer extends JPanel {
     scrollPane.getHorizontalScrollBar().setUnitIncrement(20);
     scrollPane.setBorder(null);
 
-    // Attach Row Header and Corners
+    // Set explicit background on the ScrollPane itself (fills gaps)
+    scrollPane.setBackground(Theme.PALETTE_BACKGROUND);
+
+    // Attach Row Header
     scrollPane.setRowHeaderView(timingPanel.getRowHeader());
+
+    // Set ALL 4 corners
     scrollPane.setCorner(ScrollPaneConstants.UPPER_LEFT_CORNER, createCorner());
     scrollPane.setCorner(ScrollPaneConstants.LOWER_LEFT_CORNER, createCorner());
+    scrollPane.setCorner(ScrollPaneConstants.UPPER_RIGHT_CORNER, createCorner());
+    scrollPane.setCorner(ScrollPaneConstants.LOWER_RIGHT_CORNER, createCorner());
 
     add(scrollPane, BorderLayout.CENTER);
 
@@ -88,18 +94,28 @@ public class TimingContainer extends JPanel {
   }
 
   public void updateTheme() {
+    // Update entire tree (resets standard Swing components)
     if (getParent() != null)
       SwingUtilities.updateComponentTreeUI(this);
 
+    // Re-apply themes to custom children
     timingPanel.updateTheme();
 
+    // Fix ScrollPane Viewports (The "White Square" culprit is often here)
+    scrollPane.setBackground(Theme.PALETTE_BACKGROUND);
     scrollPane.getViewport().setBackground(Theme.BACKGROUND);
+
+    if (scrollPane.getRowHeader() != null) {
+      scrollPane.getRowHeader().setBackground(Theme.PALETTE_BACKGROUND);
+    }
+    if (scrollPane.getColumnHeader() != null) {
+      scrollPane.getColumnHeader().setBackground(Theme.PALETTE_BACKGROUND);
+    }
+
     scrollPane.getVerticalScrollBar().setUI(new ThemedScrollBarUI());
     scrollPane.getHorizontalScrollBar().setUI(new ThemedScrollBarUI());
 
-    updateCorner(ScrollPaneConstants.UPPER_LEFT_CORNER);
-    updateCorner(ScrollPaneConstants.LOWER_LEFT_CORNER);
-
+    // Force repaint of corners (Logic handled inside the createCorner class now)
     toolBar.setBackground(Theme.PALETTE_BACKGROUND);
     for (Component c : toolBar.getComponents()) {
       if (c instanceof JButton) {
@@ -113,8 +129,6 @@ public class TimingContainer extends JPanel {
     }
     repaint();
   }
-
-  // --- Helpers ---
 
   private JButton addButton(String text, java.awt.event.ActionListener action) {
     JButton btn = new JButton(text);
@@ -133,14 +147,14 @@ public class TimingContainer extends JPanel {
   }
 
   private JPanel createCorner() {
-    JPanel p = new JPanel();
-    p.setBackground(Theme.PALETTE_BACKGROUND);
-    return p;
+    return new JPanel() {
+      @Override
+      protected void paintComponent(Graphics g) {
+        // Always fill with the current theme color, ignoring everything else
+        g.setColor(Theme.PALETTE_BACKGROUND);
+        g.fillRect(0, 0, getWidth(), getHeight());
+      }
+    };
   }
 
-  private void updateCorner(String key) {
-    Component c = scrollPane.getCorner(key);
-    if (c != null)
-      c.setBackground(Theme.PALETTE_BACKGROUND);
-  }
 }
