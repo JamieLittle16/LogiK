@@ -15,16 +15,18 @@ import uk.ac.cam.jml229.logic.ui.SimulationController;
 import uk.ac.cam.jml229.logic.ui.AutoLayout;
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.core.Wire;
-import uk.ac.cam.jml229.logic.ui.timing.TimingPanel;
 import uk.ac.cam.jml229.logic.ui.timing.SignalMonitor;
+import uk.ac.cam.jml229.logic.ui.timing.TimingWindow;
 
 public class AppMenuBar extends JMenuBar {
 
   private final JFrame parentFrame;
   private final CircuitPanel circuitPanel;
   private final SimulationController simController;
-  private final JFrame timingFrame;
-  private final TimingPanel timingPanel;
+
+  // Changed: Now uses the high-level Window class
+  private final TimingWindow timingWindow;
+
   private final Consumer<String> themeCallback;
   private final Runnable settingsCallback;
   private final Runnable saveCallback;
@@ -34,8 +36,7 @@ public class AppMenuBar extends JMenuBar {
   public AppMenuBar(JFrame parentFrame,
       CircuitPanel circuitPanel,
       SimulationController simController,
-      JFrame timingFrame,
-      TimingPanel timingPanel,
+      TimingWindow timingWindow, // <--- Updated type
       Consumer<String> themeCallback,
       Runnable settingsCallback,
       Runnable saveCallback,
@@ -44,8 +45,7 @@ public class AppMenuBar extends JMenuBar {
     this.parentFrame = parentFrame;
     this.circuitPanel = circuitPanel;
     this.simController = simController;
-    this.timingFrame = timingFrame;
-    this.timingPanel = timingPanel;
+    this.timingWindow = timingWindow;
     this.themeCallback = themeCallback;
     this.settingsCallback = settingsCallback;
     this.saveCallback = saveCallback;
@@ -55,11 +55,11 @@ public class AppMenuBar extends JMenuBar {
     this.zoomStatusLabel.setForeground(Color.GRAY);
 
     initMenus();
-    updateTheme(); // Initial style application
+    updateTheme();
   }
 
   private void initMenus() {
-    // --- FILE MENU ---
+    // --- FILE ---
     JMenu fileMenu = new JMenu("File");
     addItem(fileMenu, "Save...", KeyEvent.VK_S, e -> saveCallback.run());
     addItem(fileMenu, "Load...", KeyEvent.VK_O, e -> loadCallback.run());
@@ -67,7 +67,7 @@ public class AppMenuBar extends JMenuBar {
     addItem(fileMenu, "Settings...", 0, e -> settingsCallback.run());
     add(fileMenu);
 
-    // --- EDIT MENU ---
+    // --- EDIT ---
     JMenu editMenu = new JMenu("Edit");
     addItem(editMenu, "Undo", KeyEvent.VK_Z, e -> circuitPanel.undo());
     addItem(editMenu, "Redo", KeyEvent.VK_Y, e -> circuitPanel.redo());
@@ -77,25 +77,22 @@ public class AppMenuBar extends JMenuBar {
     addItem(editMenu, "Paste", KeyEvent.VK_V, e -> circuitPanel.paste());
     editMenu.addSeparator();
     addItem(editMenu, "Rotate", KeyEvent.VK_R, e -> circuitPanel.rotateSelection());
-
     JMenuItem deleteItem = new JMenuItem("Delete");
     deleteItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0));
     deleteItem.addActionListener(e -> circuitPanel.deleteSelection());
     editMenu.add(deleteItem);
     add(editMenu);
 
-    // --- VIEW MENU ---
+    // --- VIEW ---
     JMenu viewMenu = new JMenu("View");
     addItem(viewMenu, "Show Timing Diagram", KeyEvent.VK_D, e -> {
-      boolean visible = !timingFrame.isVisible();
-      timingFrame.setVisible(visible);
-      if (visible) {
-        SwingUtilities.invokeLater(timingPanel::scrollToPresent);
-      }
+      boolean visible = !timingWindow.isVisible();
+      timingWindow.setVisible(visible);
+      if (visible)
+        SwingUtilities.invokeLater(timingWindow::scrollToPresent);
     });
     viewMenu.addSeparator();
 
-    // Theme Submenu
     JMenu themeMenu = new JMenu("Theme");
     buildThemeMenu(themeMenu);
     viewMenu.add(themeMenu);
@@ -116,7 +113,7 @@ public class AppMenuBar extends JMenuBar {
     viewMenu.add(snapGridItem);
     add(viewMenu);
 
-    // --- TOOLS MENU ---
+    // --- TOOLS ---
     JMenu toolsMenu = new JMenu("Tools");
     addItem(toolsMenu, "Auto-Organise Circuit", KeyEvent.VK_L, e -> {
       AutoLayout.organise(circuitPanel.getCircuit());
@@ -126,13 +123,12 @@ public class AppMenuBar extends JMenuBar {
     addItem(toolsMenu, "Add Selected to Timing Diagram", KeyEvent.VK_M, e -> addSelectionToTiming());
     add(toolsMenu);
 
-    // --- SIMULATION MENU ---
+    // --- SIMULATION ---
     JMenu simMenu = new JMenu("Simulation");
     JMenuItem startItem = new JMenuItem("Start");
     startItem.addActionListener(e -> simController.start());
     JMenuItem stopItem = new JMenuItem("Stop");
     stopItem.addActionListener(e -> simController.stop());
-
     JMenuItem stepItem = new JMenuItem("Step (Manual Tick)");
     stepItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_T, 0));
     stepItem.addActionListener(e -> simController.step());
@@ -184,7 +180,6 @@ public class AppMenuBar extends JMenuBar {
     };
     List<String> allThemes = new ArrayList<>(List.of(builtIns));
 
-    // Load custom themes from disk
     File userThemeDir = new File(System.getProperty("user.home") + "/.logik/themes");
     if (userThemeDir.exists() && userThemeDir.isDirectory()) {
       for (File f : userThemeDir.listFiles()) {
@@ -234,14 +229,14 @@ public class AppMenuBar extends JMenuBar {
       if (c.getOutputCount() > 0) {
         Wire w = c.getOutputWire(0);
         if (w != null) {
-          timingPanel.addMonitor(new SignalMonitor(c.getName(), w, Theme.WIRE_ON, timingPanel.getBufferSize()));
+          timingWindow.addMonitor(new SignalMonitor(c.getName(), w, Theme.WIRE_ON, timingWindow.getBufferSize()));
           added = true;
         }
       }
     }
     if (added) {
-      timingFrame.setVisible(true);
-      SwingUtilities.invokeLater(timingPanel::scrollToPresent);
+      timingWindow.setVisible(true);
+      SwingUtilities.invokeLater(timingWindow::scrollToPresent);
     } else {
       JOptionPane.showMessageDialog(parentFrame, "Selected components have no outputs to monitor.");
     }

@@ -21,11 +21,11 @@ import uk.ac.cam.jml229.logic.ui.panels.*;
 import uk.ac.cam.jml229.logic.ui.interaction.*;
 import uk.ac.cam.jml229.logic.ui.render.*;
 import uk.ac.cam.jml229.logic.ui.SimulationController;
-import uk.ac.cam.jml229.logic.ui.timing.TimingPanel;
 import uk.ac.cam.jml229.logic.ui.timing.SignalMonitor;
 import uk.ac.cam.jml229.logic.ui.FlatIcons;
 import uk.ac.cam.jml229.logic.ui.SettingsDialog;
 import uk.ac.cam.jml229.logic.ui.AppMenuBar;
+import uk.ac.cam.jml229.logic.ui.timing.TimingWindow;
 
 public class GuiMain {
 
@@ -37,12 +37,8 @@ public class GuiMain {
   private static ComponentPalette palette;
   private static JFrame frame;
 
-  // --- Timing Window UI Elements ---
-  private static JFrame timingFrame;
-  private static TimingPanel timingPanel;
-  private static JScrollPane timingScroll;
-  private static JToolBar timingTools;
-
+  // --- UI Elements ---
+  private static TimingWindow timingWindow; // Refactored Window
   private static JScrollPane scrollPalette;
   private static AppMenuBar appMenuBar;
   private static JSplitPane splitPane;
@@ -86,48 +82,13 @@ public class GuiMain {
       palette = new ComponentPalette(interaction, renderer);
       interaction.setPalette(palette);
 
-      // --- Init Timing Window ---
-      timingPanel = new TimingPanel();
-      timingFrame = new JFrame("Timing Diagram");
-      timingFrame.setSize(900, 500);
-      timingFrame.setLayout(new BorderLayout());
-
-      // Toolbar
-      timingTools = new JToolBar();
-      timingTools.setFloatable(false);
-      buildTimingToolbar();
-
-      timingFrame.add(timingTools, BorderLayout.NORTH);
-
-      // Scroll Pane
-      timingScroll = new JScrollPane(timingPanel);
-      timingScroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
-      timingScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
-      timingScroll.getVerticalScrollBar().setUnitIncrement(20);
-      timingScroll.getHorizontalScrollBar().setUnitIncrement(20);
-      timingScroll.setBorder(null);
-
-      timingScroll.setRowHeaderView(timingPanel.getRowHeader());
-      timingScroll.setCorner(ScrollPaneConstants.UPPER_LEFT_CORNER, new JPanel() {
-        {
-          setBackground(Theme.PALETTE_BACKGROUND);
-        }
-      });
-      timingScroll.setCorner(ScrollPaneConstants.LOWER_LEFT_CORNER, new JPanel() {
-        {
-          setBackground(Theme.PALETTE_BACKGROUND);
-        }
-      });
-
-      timingFrame.add(timingScroll, BorderLayout.CENTER);
-      timingFrame.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+      // --- Init Timing Window (Using new Class) ---
+      timingWindow = new TimingWindow();
 
       // --- Simulation Controller ---
       simController = new SimulationController(circuitPanel.getCircuit(), () -> {
         circuitPanel.repaint();
-        if (timingFrame != null && timingFrame.isVisible()) {
-          timingPanel.tick();
-        }
+        timingWindow.tick();
       });
       simController.start();
 
@@ -136,22 +97,21 @@ public class GuiMain {
       // Hook up interaction listener
       interaction.setOnOpenTiming(selection -> addSelectionToTiming(selection));
 
-      // --- Build Custom Menu Bar ---
+      // --- Build Menu Bar ---
       appMenuBar = new AppMenuBar(
           frame,
           circuitPanel,
           simController,
-          timingFrame,
-          timingPanel,
-          GuiMain::loadAndApplyTheme, // Theme callback
-          () -> new SettingsDialog(frame).setVisible(true), // Settings callback
+          timingWindow,
+          GuiMain::loadAndApplyTheme,
+          () -> new SettingsDialog(frame).setVisible(true),
           GuiMain::performSave,
           GuiMain::performLoad);
       frame.setJMenuBar(appMenuBar);
 
-      // Connect Zoom Label
       circuitPanel.setOnZoomChanged(scale -> appMenuBar.updateZoomLabel(scale));
 
+      // --- Main Layout ---
       scrollPalette = new JScrollPane(palette);
       scrollPalette.setBorder(null);
       scrollPalette.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
@@ -193,32 +153,6 @@ public class GuiMain {
 
   // --- Helper Methods ---
 
-  private static void buildTimingToolbar() {
-    JButton playPauseBtn = new JButton("Pause");
-    playPauseBtn.addActionListener(e -> {
-      timingPanel.togglePause();
-      playPauseBtn.setText(timingPanel.isPaused() ? "Resume" : "Pause");
-    });
-    JButton zoomInBtn = new JButton("Zoom In (+)");
-    zoomInBtn.addActionListener(e -> timingPanel.zoomIn());
-    JButton zoomOutBtn = new JButton("Zoom Out (-)");
-    zoomOutBtn.addActionListener(e -> timingPanel.zoomOut());
-    JButton clearBtn = new JButton("Clear History");
-    JButton skipBtn = new JButton("Present");
-    skipBtn.setToolTipText("Skip to Present");
-    skipBtn.addActionListener(e -> timingPanel.scrollToPresent());
-    clearBtn.addActionListener(e -> timingPanel.clear());
-
-    timingTools.add(playPauseBtn);
-    timingTools.addSeparator();
-    timingTools.add(zoomInBtn);
-    timingTools.add(zoomOutBtn);
-    timingTools.addSeparator();
-    timingTools.add(clearBtn);
-    timingTools.addSeparator();
-    timingTools.add(skipBtn);
-  }
-
   private static void configureWindowSize() {
     int w = SettingsManager.getWindowWidth();
     int h = SettingsManager.getWindowHeight();
@@ -254,15 +188,15 @@ public class GuiMain {
       if (c.getOutputCount() > 0) {
         Wire w = c.getOutputWire(0);
         if (w != null) {
-          timingPanel.addMonitor(new SignalMonitor(
-              c.getName(), w, Theme.WIRE_ON, timingPanel.getBufferSize()));
+          timingWindow.addMonitor(new SignalMonitor(
+              c.getName(), w, Theme.WIRE_ON, timingWindow.getBufferSize()));
           added = true;
         }
       }
     }
     if (added) {
-      timingFrame.setVisible(true);
-      SwingUtilities.invokeLater(() -> timingPanel.scrollToPresent());
+      timingWindow.setVisible(true);
+      SwingUtilities.invokeLater(() -> timingWindow.scrollToPresent());
     } else {
       JOptionPane.showMessageDialog(frame, "Selected components have no outputs to monitor.");
     }
@@ -283,13 +217,12 @@ public class GuiMain {
     SettingsManager.setDarkMode(Theme.isDarkMode);
     updateUIColors();
     circuitPanel.repaint();
-    if (timingPanel != null)
-      timingPanel.repaint();
   }
 
   private static void updateUIColors() {
     circuitPanel.updateTheme();
     palette.updateTheme();
+    timingWindow.updateTheme(); // Updated via class method
 
     if (Theme.isDarkMode) {
       UIManager.put("CheckBoxMenuItem.checkIcon", new FlatIcons.CheckIcon());
@@ -313,55 +246,6 @@ public class GuiMain {
 
     if (appMenuBar != null) {
       appMenuBar.updateTheme();
-    }
-
-    if (timingFrame != null) {
-      SwingUtilities.updateComponentTreeUI(timingFrame);
-    }
-
-    if (timingPanel != null) {
-      timingPanel.updateTheme();
-    }
-
-    if (timingScroll != null) {
-      timingScroll.getViewport().setBackground(Theme.BACKGROUND);
-      timingScroll.getVerticalScrollBar().setUI(new ThemedScrollBarUI());
-      timingScroll.getHorizontalScrollBar().setUI(new ThemedScrollBarUI());
-
-      JComponent cornerUL = (JComponent) timingScroll.getCorner(ScrollPaneConstants.UPPER_LEFT_CORNER);
-      if (cornerUL != null)
-        cornerUL.setBackground(Theme.PALETTE_BACKGROUND);
-
-      JComponent cornerLL = (JComponent) timingScroll.getCorner(ScrollPaneConstants.LOWER_LEFT_CORNER);
-      if (cornerLL != null)
-        cornerLL.setBackground(Theme.PALETTE_BACKGROUND);
-
-      timingScroll.repaint();
-    }
-
-    if (timingTools != null) {
-      timingTools.setBackground(Theme.PALETTE_BACKGROUND);
-      for (java.awt.Component c : timingTools.getComponents()) {
-        if (c instanceof JButton) {
-          JButton btn = (JButton) c;
-          btn.setOpaque(true);
-          btn.setBorderPainted(false);
-          btn.setFocusPainted(false);
-          btn.setBackground(Theme.BUTTON_BACKGROUND);
-          btn.setForeground(Theme.TEXT_COLOR);
-          if (btn.getMouseListeners().length < 2) {
-            btn.addMouseListener(new MouseAdapter() {
-              public void mouseEntered(MouseEvent e) {
-                btn.setBackground(Theme.BUTTON_HOVER);
-              }
-
-              public void mouseExited(MouseEvent e) {
-                btn.setBackground(Theme.BUTTON_BACKGROUND);
-              }
-            });
-          }
-        }
-      }
     }
   }
 
@@ -405,8 +289,7 @@ public class GuiMain {
         for (CustomComponent cc : result.customTools())
           palette.addCustomTool(cc);
         simController.setCircuit(result.circuit());
-        if (timingPanel != null)
-          timingPanel.clear();
+        timingWindow.clear();
         circuitPanel.repaint();
         JOptionPane.showMessageDialog(frame, "Loaded successfully!");
       } catch (Exception ex) {
