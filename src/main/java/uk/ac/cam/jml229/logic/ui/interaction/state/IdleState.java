@@ -155,20 +155,21 @@ public class IdleState implements InteractionState {
 
   @Override
   public void keyPressed(KeyEvent e) {
-    if (e.getKeyCode() == KeyEvent.VK_DELETE || e.getKeyCode() == KeyEvent.VK_BACK_SPACE)
-      ctx.deleteSelection();
-    if (e.isControlDown() && e.getKeyCode() == KeyEvent.VK_X)
-      ctx.cut();
-    if (e.isControlDown() && e.getKeyCode() == KeyEvent.VK_C)
-      ctx.copy();
-    if (e.isControlDown() && e.getKeyCode() == KeyEvent.VK_V)
-      ctx.paste();
-    if (e.isControlDown() && e.getKeyCode() == KeyEvent.VK_Z)
-      ctx.undo();
-    if (e.isControlDown() && e.getKeyCode() == KeyEvent.VK_Y)
-      ctx.redo();
+    // --- FIX: Removed redundant shortcuts ---
+    // The MenuBar in GuiMain.java already handles:
+    // Ctrl+Z (Undo), Ctrl+Y (Redo), Ctrl+X (Cut),
+    // Ctrl+C (Copy), Ctrl+V (Paste), and Delete.
+    // Keeping them here caused double-actions.
+
+    // We only keep 'R' for Rotate because the Menu Bar uses 'Ctrl+R',
+    // but usually users expect just 'R' to rotate while placing/selecting.
     if (e.getKeyCode() == KeyEvent.VK_R)
       ctx.rotateSelection();
+
+    // We can keep Backspace as an alternative to Delete if you wish,
+    // since the Menu Bar usually only binds the "Delete" key.
+    if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE)
+      ctx.deleteSelection();
   }
 
   private void renameComponent(Component c) {

@@ -87,6 +87,9 @@ public class GuiMain {
       simController = new SimulationController(circuitPanel.getCircuit(), circuitPanel::repaint);
       simController.start();
 
+      circuitPanel.setOnCircuitChanged(newCircuit -> {
+        simController.setCircuit(newCircuit);
+      });
       // --- Build Menu Bar ---
       menuBar = new JMenuBar();
 

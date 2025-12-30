@@ -301,13 +301,13 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   public void undo() {
     Circuit prev = history.undo(circuit);
     if (prev != null)
-      setCircuit(prev);
+      panel.setCircuit(prev);
   }
 
   public void redo() {
     Circuit next = history.redo(circuit);
     if (next != null)
-      setCircuit(next);
+      panel.setCircuit(next);
   }
 
   public void saveHistory() {

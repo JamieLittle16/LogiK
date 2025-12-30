@@ -25,6 +25,7 @@ public class CircuitPanel extends JPanel {
 
   // Callback for GUI updates (e.g. "100%" label)
   private Consumer<Double> onZoomChanged;
+  private Consumer<Circuit> onCircuitChanged;
 
   public CircuitPanel() {
     this.circuit = new Circuit();
@@ -54,6 +55,10 @@ public class CircuitPanel extends JPanel {
 
   public void setOnZoomChanged(Consumer<Double> listener) {
     this.onZoomChanged = listener;
+  }
+
+  public void setOnCircuitChanged(Consumer<Circuit> listener) {
+    this.onCircuitChanged = listener;
   }
 
   // --- Zoom Actions (For Menus/Keyboard) ---
@@ -154,6 +159,11 @@ public class CircuitPanel extends JPanel {
   public void setCircuit(Circuit newCircuit) {
     this.circuit = newCircuit;
     this.interaction.setCircuit(newCircuit);
+
+    // Notify the SimulationController via GuiMain
+    if (onCircuitChanged != null) {
+      onCircuitChanged.accept(newCircuit);
+    }
     repaint();
   }
 
