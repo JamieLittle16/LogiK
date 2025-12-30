@@ -106,6 +106,9 @@ public class GuiMain {
       JButton zoomOutBtn = new JButton("Zoom Out (-)");
       zoomOutBtn.addActionListener(e -> timingPanel.zoomOut());
       JButton clearBtn = new JButton("Clear History");
+      JButton skipBtn = new JButton("Present");
+      skipBtn.setToolTipText("Skip to Present");
+      skipBtn.addActionListener(e -> timingPanel.scrollToPresent());
       clearBtn.addActionListener(e -> timingPanel.clear());
 
       timingTools.add(playPauseBtn);
@@ -114,6 +117,8 @@ public class GuiMain {
       timingTools.add(zoomOutBtn);
       timingTools.addSeparator();
       timingTools.add(clearBtn);
+      timingTools.addSeparator();
+      timingTools.add(skipBtn);
 
       timingFrame.add(timingTools, BorderLayout.NORTH);
 

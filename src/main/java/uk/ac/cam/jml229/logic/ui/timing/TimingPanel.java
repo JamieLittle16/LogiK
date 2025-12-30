@@ -33,6 +33,13 @@ public class TimingPanel extends JPanel implements Scrollable {
     repaint();
   }
 
+  public void scrollToPresent() {
+    // Scroll to the far right (live edge)
+    int w = getWidth();
+    scrollRectToVisible(new Rectangle(w - 1, 0, 1, 1));
+    repaint();
+  }
+
   public void tick() {
     if (paused)
       return;
