@@ -7,7 +7,7 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.AffineTransform;
 import java.util.Map;
 import java.util.List;
-import java.util.ArrayList;
+import java.util.ArrayList; // Added import
 
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
@@ -19,9 +19,15 @@ public class ComponentPalette extends JPanel implements Scrollable {
 
   private final CircuitInteraction interaction;
   private final CircuitRenderer renderer;
+
+  // --- STATE TRACKING ---
   private boolean hasCustomHeading = false;
   private JPanel currentSection;
+
   private final List<Component> customPrototypes = new ArrayList<>();
+  private JPanel customHeaderPanel; // The "Custom IC" label
+  private SectionPanel customSectionPanel; // The container for buttons
+  private java.awt.Component customSpacer; // The empty space above the header
 
   public ComponentPalette(CircuitInteraction interaction, CircuitRenderer renderer) {
     this.interaction = interaction;
@@ -39,6 +45,11 @@ public class ComponentPalette extends JPanel implements Scrollable {
         addTool(item.createInstance());
       }
     }
+  }
+
+  // Allow GuiMain to save these
+  public List<Component> getCustomPrototypes() {
+    return customPrototypes;
   }
 
   public void updateTheme() {
@@ -62,8 +73,15 @@ public class ComponentPalette extends JPanel implements Scrollable {
   }
 
   private void addLabel(String text) {
-    if (getComponentCount() > 0)
-      add(Box.createRigidArea(new Dimension(0, 15)));
+    // --- Spacer ---
+    if (getComponentCount() > 0) {
+      java.awt.Component spacer = Box.createRigidArea(new Dimension(0, 15));
+      add(spacer);
+      // Capture the spacer if this is the Custom section
+      if (text.equals("Custom IC")) {
+        this.customSpacer = spacer;
+      }
+    }
 
     // --- Collapsible Header ---
     JPanel headerPanel = new JPanel(new BorderLayout());
@@ -78,8 +96,6 @@ public class ComponentPalette extends JPanel implements Scrollable {
     JLabel label = new JLabel("\u25BC " + text, SwingConstants.CENTER);
     label.setFont(new Font("SansSerif", Font.BOLD, 12));
     label.setForeground(Theme.PALETTE_HEADINGS);
-    // Removed left border so it centers perfectly
-    // label.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 0));
 
     headerPanel.add(label, BorderLayout.CENTER);
     add(headerPanel);
@@ -89,6 +105,12 @@ public class ComponentPalette extends JPanel implements Scrollable {
     SectionPanel section = new SectionPanel();
     currentSection = section;
     add(section);
+
+    // Capture references if this is the Custom section
+    if (text.equals("Custom IC")) {
+      this.customHeaderPanel = headerPanel;
+      this.customSectionPanel = section;
+    }
 
     // --- Toggle Logic ---
     headerPanel.addMouseListener(new MouseAdapter() {
@@ -114,12 +136,20 @@ public class ComponentPalette extends JPanel implements Scrollable {
   }
 
   public void addCustomTool(Component prototype) {
+    // Add to the list (so it can be saved)
     customPrototypes.add(prototype);
 
+    // Create Header if missing
     if (!hasCustomHeading) {
       addLabel("Custom IC");
       hasCustomHeading = true;
     }
+
+    // Ensure we add to the custom section (even if mixed with other actions)
+    if (customSectionPanel != null) {
+      currentSection = customSectionPanel;
+    }
+
     addTool(prototype);
     revalidate();
     repaint();
@@ -184,11 +214,10 @@ public class ComponentPalette extends JPanel implements Scrollable {
     button.addMouseListener(new MouseAdapter() {
       @Override
       public void mousePressed(MouseEvent e) {
-        // Right-Click to Delete Custom ICs
+        // --- RIGHT CLICK DELETE LOGIC ---
         if (SwingUtilities.isRightMouseButton(e)) {
           if (prototype instanceof CustomComponent) {
             JPopupMenu popup = new JPopupMenu();
-            // Style the popup to match the theme
             popup.setBackground(Theme.PALETTE_BACKGROUND);
             popup.setBorder(BorderFactory.createLineBorder(Theme.BUTTON_BORDER));
 
@@ -202,13 +231,34 @@ public class ComponentPalette extends JPanel implements Scrollable {
                   "Delete Custom Component", JOptionPane.YES_NO_OPTION);
 
               if (confirm == JOptionPane.YES_OPTION) {
+                // Remove from list
                 customPrototypes.remove(prototype);
 
+                // Remove button from UI
                 Container parent = button.getParent();
                 if (parent != null) {
                   parent.remove(button);
                   parent.revalidate();
                   parent.repaint();
+                }
+
+                // CLEANUP: If list is empty, remove Header and Spacer
+                if (customPrototypes.isEmpty()) {
+                  if (customHeaderPanel != null) {
+                    ComponentPalette.this.remove(customHeaderPanel);
+                    customHeaderPanel = null;
+                  }
+                  if (customSectionPanel != null) {
+                    ComponentPalette.this.remove(customSectionPanel);
+                    customSectionPanel = null;
+                  }
+                  if (customSpacer != null) {
+                    ComponentPalette.this.remove(customSpacer);
+                    customSpacer = null;
+                  }
+                  hasCustomHeading = false;
+                  ComponentPalette.this.revalidate();
+                  ComponentPalette.this.repaint();
                 }
               }
             });
@@ -216,7 +266,7 @@ public class ComponentPalette extends JPanel implements Scrollable {
             popup.add(deleteItem);
             popup.show(button, e.getX(), e.getY());
           }
-          return; // Stop processing (don't place component on right click)
+          return;
         }
 
         Component newComp;
@@ -246,10 +296,6 @@ public class ComponentPalette extends JPanel implements Scrollable {
       currentSection.add(button);
     else
       add(button);
-  }
-
-  public List<Component> getCustomPrototypes() {
-    return customPrototypes;
   }
 
   @Override
