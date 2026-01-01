@@ -50,7 +50,7 @@ public class SettingsDialog extends JDialog {
     JLabel delayLabel = new JLabel("Gate Delay (Ticks): ");
     delayLabel.setForeground(Theme.TEXT_COLOR);
 
-    JSpinner delaySpinner = new JSpinner(new SpinnerNumberModel(SettingsManager.getGateDelay(), 1, 50, 1));
+    JSpinner delaySpinner = new JSpinner(new SpinnerNumberModel(SettingsManager.getGateDelay(), 1, 1000000, 100));
     styleSpinner(delaySpinner);
 
     delayPanel.add(delayLabel);
