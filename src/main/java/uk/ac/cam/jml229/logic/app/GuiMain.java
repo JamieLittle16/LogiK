@@ -115,6 +115,7 @@ public class GuiMain {
       appMenuBar = new AppMenuBar(
           frame,
           circuitPanel,
+          interaction,
           simController,
           timingContainer,
           GuiMain::loadAndApplyTheme,

@@ -19,6 +19,7 @@ import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.Pin;
 import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.WireSegment;
 import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.WaypointRef;
 import uk.ac.cam.jml229.logic.ui.interaction.state.*;
+import uk.ac.cam.jml229.logic.ui.AutoLayout;
 import uk.ac.cam.jml229.logic.io.HistoryManager;
 import uk.ac.cam.jml229.logic.io.StorageManager;
 import uk.ac.cam.jml229.logic.app.Theme;
@@ -166,6 +167,17 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     JMenuItem icItem = new JMenuItem("Create Custom IC");
     icItem.addActionListener(ev -> createCustomComponentFromSelection());
     menu.add(icItem);
+
+    if (!selectedComponents.isEmpty()) {
+      JMenuItem organiseItem = new JMenuItem("Auto-Organise Selection");
+      organiseItem.addActionListener(ev -> {
+        saveHistory();
+        // Pass a copy so it doesn't get weird if selection clears during op
+        AutoLayout.organiseSelection(circuit, new ArrayList<>(selectedComponents));
+        panel.repaint();
+      });
+      menu.add(organiseItem);
+    }
 
     JMenuItem timingItem = new JMenuItem("Add to Timing Diagram");
     timingItem.addActionListener(ev -> {

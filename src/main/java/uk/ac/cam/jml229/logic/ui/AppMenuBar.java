@@ -11,6 +11,7 @@ import java.util.function.Consumer;
 import uk.ac.cam.jml229.logic.app.Theme;
 import uk.ac.cam.jml229.logic.io.SettingsManager;
 import uk.ac.cam.jml229.logic.ui.panels.CircuitPanel;
+import uk.ac.cam.jml229.logic.ui.interaction.CircuitInteraction;
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.core.Wire;
 import uk.ac.cam.jml229.logic.ui.timing.SignalMonitor;
@@ -20,6 +21,7 @@ public class AppMenuBar extends JMenuBar {
 
   private final JFrame parentFrame;
   private final CircuitPanel circuitPanel;
+  private final CircuitInteraction circuitInteraction;
   private final SimulationController simController;
   private final TimingContainer timingContainer;
 
@@ -33,6 +35,7 @@ public class AppMenuBar extends JMenuBar {
 
   public AppMenuBar(JFrame parentFrame,
       CircuitPanel circuitPanel,
+      CircuitInteraction circuitInteraction,
       SimulationController simController,
       TimingContainer timingContainer,
       Consumer<String> themeCallback,
@@ -43,6 +46,7 @@ public class AppMenuBar extends JMenuBar {
 
     this.parentFrame = parentFrame;
     this.circuitPanel = circuitPanel;
+    this.circuitInteraction = circuitInteraction;
     this.simController = simController;
     this.timingContainer = timingContainer;
     this.themeCallback = themeCallback;
@@ -112,7 +116,8 @@ public class AppMenuBar extends JMenuBar {
 
     // --- TOOLS ---
     JMenu toolsMenu = new JMenu("Tools");
-    addItem(toolsMenu, "Auto-Organise Circuit", KeyEvent.VK_L, e -> {
+    addItem(toolsMenu, "Auto-Organise Workspace", KeyEvent.VK_L, e -> {
+      circuitInteraction.saveHistory();
       AutoLayout.organise(circuitPanel.getCircuit());
       circuitPanel.centerCircuit();
       circuitPanel.repaint();

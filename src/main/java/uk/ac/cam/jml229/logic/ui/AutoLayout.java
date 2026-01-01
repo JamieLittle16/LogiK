@@ -14,27 +14,49 @@ public class AutoLayout {
   private static final int ATTEMPTS = 100; // Physics iterations
 
   public static void organise(Circuit circuit) {
+    organiseSelection(circuit, circuit.getComponents());
+  }
+
+  public static void organiseSelection(Circuit circuit, List<Component> selection) {
+    if (selection == null || selection.isEmpty())
+      return;
+
     // Untangle Components (Force-Directed Layout)
-    untangleComponents(circuit);
+    untangleComponents(circuit, selection);
 
     // Route Wires (Orthogonal A* Search)
-    routeWires(circuit);
+    routeWires(circuit, selection);
   }
 
   // --- PHASE 1: Component Placement ---
-  private static void untangleComponents(Circuit circuit) {
-    List<Component> nodes = circuit.getComponents();
-    if (nodes.isEmpty())
+  private static void untangleComponents(Circuit circuit, List<Component> movingComponents) {
+    List<Component> allNodes = circuit.getComponents();
+    if (allNodes.isEmpty())
       return;
+
+    // Determine the center point to pull towards
+    Point centerPull = new Point(0, 0);
+    boolean isPartial = (movingComponents.size() < allNodes.size());
+
+    if (isPartial) {
+      // If moving a selection, pull towards their current centroid
+      // to keep them local, rather than flying off to (0,0)
+      int sumX = 0, sumY = 0;
+      for (Component c : movingComponents) {
+        sumX += c.getX();
+        sumY += c.getY();
+      }
+      centerPull.setLocation(sumX / movingComponents.size(), sumY / movingComponents.size());
+    }
 
     for (int i = 0; i < ATTEMPTS; i++) {
       Map<Component, Point> forces = new HashMap<>();
 
-      for (Component c : nodes) {
+      for (Component c : movingComponents) {
         double fx = 0, fy = 0;
 
-        // Repulsion (Push everything apart)
-        for (Component other : nodes) {
+        // Repulsion (Push away from ALL components, fixed or moving)
+        for (Component other : allNodes) {
           if (c == other)
             continue;
           double dx = c.getX() - other.getX();
@@ -48,9 +70,9 @@ public class AutoLayout {
           fy += Math.sin(angle) * force;
         }
 
-        // Attraction (Pull towards center to keep them roughly on screen)
-        double dx = 0 - c.getX();
-        double dy = 0 - c.getY();
+        // Attraction (Pull towards calculated center)
+        double dx = centerPull.x - c.getX();
+        double dy = centerPull.y - c.getY();
         fx += dx * 0.05;
         fy += dy * 0.05;
 
@@ -58,22 +80,24 @@ public class AutoLayout {
       }
 
       // Apply forces
-      for (Component c : nodes) {
+      for (Component c : movingComponents) {
         Point f = forces.get(c);
-        int nx = c.getX() + Math.max(-20, Math.min(20, f.x));
-        int ny = c.getY() + Math.max(-20, Math.min(20, f.y));
+        if (f != null) {
+          int nx = c.getX() + Math.max(-20, Math.min(20, f.x));
+          int ny = c.getY() + Math.max(-20, Math.min(20, f.y));
 
-        // Snap to Grid
-        nx = (nx / GRID_SIZE) * GRID_SIZE;
-        ny = (ny / GRID_SIZE) * GRID_SIZE;
+          // Snap to Grid
+          nx = (nx / GRID_SIZE) * GRID_SIZE;
+          ny = (ny / GRID_SIZE) * GRID_SIZE;
 
-        c.setPosition(nx, ny);
+          c.setPosition(nx, ny);
+        }
       }
     }
   }
 
   // --- PHASE 2: Wire Routing (A*) ---
-  private static void routeWires(Circuit circuit) {
+  private static void routeWires(Circuit circuit, List<Component> selection) {
     ComponentPainter painter = new ComponentPainter();
     List<Rectangle> obstacles = new ArrayList<>();
 
@@ -85,10 +109,24 @@ public class AutoLayout {
       obstacles.add(r);
     }
 
-    // Route each wire connection
+    // Route wires connected to the selection
     for (Wire w : circuit.getWires()) {
       Component src = w.getSource();
       if (src == null)
+        continue;
+
+      // Check if this wire is involved with the selection
+      boolean involved = selection.contains(src);
+      if (!involved) {
+        for (Wire.PortConnection pc : w.getDestinations()) {
+          if (selection.contains(pc.component)) {
+            involved = true;
+            break;
+          }
+        }
+      }
+
+      if (!involved)
         continue;
 
       int sourceIndex = -1;
