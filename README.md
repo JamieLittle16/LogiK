@@ -40,7 +40,7 @@ Logik is a robust simulation environment designed for students, hobbyists, and e
 
 * **Dynamic Gate Configuration:** Need a 4-input AND gate? Simply right-click a gate or use the context menu to **add extra input pins** dynamically. No need to cascade multiple 2-input gates.
 * **Advanced Simulation Engine:** Real-time, event-driven simulation with adjustable clock speeds (0.5Hz to 50Hz) and variable logic propagation speeds.
-* **Timing Diagrams & Logic Analysis:** Visualize signal states over time. This tool allows you to debug race conditions and understand the timing relationships between different parts of your circuit.
+* **Timing Diagrams & Logic Analysis:** Visualise signal states over time. This tool allows you to debug race conditions and understand the timing relationships between different parts of your circuit.
 * **Gate Propagation Delay:** Enable "Propogation Delay" to simulate real-world propagation delay. Gates take a small amount of time to change state, allowing you to identify and study **hazards** and **glitches** that instant-logic simulators miss. Each gate can have its own custom delay set
 * **Auto-Layout:** Messy wires? Use the **Auto-Organise** tool (`Tools` -> `Auto-Organise`) to instantly untangle your circuit. The algorithm intelligently repositions components and routes wires for maximum readability.
 * **Custom Integrated Circuits (ICs):** Package complex circuits into reusable "Black Box" chips to build high-level architectures. Supports nesting (chips inside chips).
@@ -52,7 +52,7 @@ Logik is a robust simulation environment designed for students, hobbyists, and e
 
 ## 🎨 Custom Themes
 
-Logik features a powerful theming engine that lets you customize every aspect of the UI, from the background grid to the color of a "High" wire signal.
+Logik features a powerful theming engine that lets you customise every aspect of the UI, from the background grid to the color of a "High" wire signal.
 
 ### Built-in Themes
 
@@ -131,11 +131,11 @@ Once installed, run `logik` from your terminal or launch it from your Applicatio
 For macOS users or those who prefer zero installation:
 
 1. Ensure you have **Java 17** or higher installed.
-2. Download `logik-1.2.1-all.jar` from the [Releases Page](https://github.com/JamieLittle16/LogiK/releases).
+2. Download `logik-1.3.1-all.jar` from the [Releases Page](https://github.com/JamieLittle16/LogiK/releases).
 3. Run via terminal:
 
 ```bash
-java -jar logik-1.2.1-all.jar
+java -jar logik-1.3.1-all.jar
 
 ```
 
