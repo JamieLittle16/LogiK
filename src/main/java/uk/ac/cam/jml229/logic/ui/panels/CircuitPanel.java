@@ -96,6 +96,47 @@ public class CircuitPanel extends JPanel {
       onZoomChanged.accept(scale);
   }
 
+  public void centerCircuit() {
+    if (circuit.getComponents().isEmpty()) {
+      setPan(0, 0);
+      return;
+    }
+
+    int minX = Integer.MAX_VALUE;
+    int minY = Integer.MAX_VALUE;
+    int maxX = Integer.MIN_VALUE;
+    int maxY = Integer.MIN_VALUE;
+
+    // Calculate Bounding Box of all components
+    for (uk.ac.cam.jml229.logic.components.Component c : circuit.getComponents()) {
+      Rectangle b = renderer.getComponentBounds(c);
+      if (b.x < minX)
+        minX = b.x;
+      if (b.y < minY)
+        minY = b.y;
+      if (b.x + b.width > maxX)
+        maxX = b.x + b.width;
+      if (b.y + b.height > maxY)
+        maxY = b.y + b.height;
+    }
+
+    // Circuit Center (World Coords)
+    double cX = minX + (maxX - minX) / 2.0;
+    double cY = minY + (maxY - minY) / 2.0;
+
+    // Viewport Center (Screen Coords)
+    double vX = getWidth() / 2.0;
+    double vY = getHeight() / 2.0;
+
+    // Calculate Pan required to align Circuit Center to Viewport Center
+    // Formula: screenX = (worldX + panX) * scale
+    // Therefore: panX = (screenX / scale) - worldX
+    double newPanX = (vX / scale) - cX;
+    double newPanY = (vY / scale) - cY;
+
+    setPan(newPanX, newPanY);
+  }
+
   // --- Edit Actions (Proxies) ---
   public void rotateSelection() {
     interaction.rotateSelection();

@@ -114,6 +114,7 @@ public class AppMenuBar extends JMenuBar {
     JMenu toolsMenu = new JMenu("Tools");
     addItem(toolsMenu, "Auto-Organise Circuit", KeyEvent.VK_L, e -> {
       AutoLayout.organise(circuitPanel.getCircuit());
+      circuitPanel.centerCircuit();
       circuitPanel.repaint();
       circuitPanel.getInteraction().saveHistory();
     });
