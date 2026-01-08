@@ -7,7 +7,7 @@ import java.util.stream.Collectors;
 import uk.ac.cam.jml229.logic.components.gates.*;
 import uk.ac.cam.jml229.logic.components.io.*;
 import uk.ac.cam.jml229.logic.components.seq.*;
-import uk.ac.cam.jml229.logic.components.misc.TextLabel; // Import the new component
+import uk.ac.cam.jml229.logic.components.misc.*;
 
 /**
  * Central "Source of Truth" for all standard component types.
@@ -41,7 +41,11 @@ public enum ComponentRegistry {
   T_FF("T_FF", "T-FF", "Sequential", () -> new TFlipFlop("T-FF")),
 
   // --- Misc ---
-  LABEL("LABEL", "Label", "Misc", () -> new TextLabel());
+  LABEL("LABEL", "Label", "Misc", () -> new TextLabel()),
+
+  // --- Transistors ---
+  NMOS("NMOS", "NMOS", "Advanced", () -> new NmosTransistor("NMOS")),
+  PMOS("PMOS", "PMOS", "Advanced", () -> new PmosTransistor("PMOS"));
 
   private final String id;
   private final String displayName;
