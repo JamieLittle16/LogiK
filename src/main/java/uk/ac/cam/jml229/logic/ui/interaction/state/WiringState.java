@@ -32,11 +32,15 @@ public class WiringState implements InteractionState {
 
   @Override
   public void mouseReleased(MouseEvent e) {
-    // --- Drag-to-Connect Logic ---
-    // If the user releases the mouse over a valid target (that isn't the start
-    // pin),
-    // we complete the connection immediately.
+    handleConnection(e);
+  }
 
+  @Override
+  public void mousePressed(MouseEvent e) {
+    handleConnection(e);
+  }
+
+  private void handleConnection(MouseEvent e) {
     Point worldPt = ctx.getWorldPoint(e);
 
     // Try Connecting to Pin
@@ -47,46 +51,27 @@ public class WiringState implements InteractionState {
       return;
     }
 
-    // Try Connecting to Wire (T-Junction)
+    // Try Connecting to Wire (Merge or T-Junction)
     WireSegment seg = ctx.getHitTester().findWireAt(worldPt);
-    if (seg != null && ctx.connectionStartPin.isInput()) {
-      connectTunction(seg, worldPt);
-      finish();
-      return;
-    }
-
-  }
-
-  @Override
-  public void mousePressed(MouseEvent e) {
-    // --- Click-Click Logic (Second Click) ---
-    Point worldPt = ctx.getWorldPoint(e);
-
-    // Clicked a Pin
-    Pin endPin = ctx.getHitTester().findPinAt(worldPt);
-    if (endPin != null) {
-      // If clicking a different pin, try connect
-      if (endPin != ctx.connectionStartPin) {
-        if (connectToPin(endPin))
-          finish();
+    if (seg != null) {
+      if (ctx.connectionStartPin.isInput()) {
+        // Input -> Wire (Read Tap / T-Junction)
+        connectTunction(seg, worldPt);
+      } else {
+        // Output -> Wire (Merge Source) - THIS WAS MISSING
+        connectMerge(seg);
       }
-      // If clicking start pin again, ignore (or could cancel)
-      return;
-    }
-
-    // Clicked a Wire
-    WireSegment seg = ctx.getHitTester().findWireAt(worldPt);
-    if (seg != null && ctx.connectionStartPin.isInput()) {
-      connectTunction(seg, worldPt);
       finish();
       return;
     }
 
-    // Clicked Empty Space -> Cancel Wiring
-    finish();
+    // Clicked empty space -> Cancel
+    if (e.getID() == MouseEvent.MOUSE_PRESSED) {
+      finish();
+    }
   }
 
-  // --- Helper Methods to reduce duplication ---
+  // --- Helper Methods ---
 
   private boolean connectToPin(Pin endPin) {
     Pin start = ctx.connectionStartPin;
@@ -107,7 +92,6 @@ public class WiringState implements InteractionState {
     if (source == null)
       return;
 
-    // Find which output index of source owns this wire
     int srcIdx = -1;
     for (int i = 0; i < source.getOutputCount(); i++) {
       if (source.getOutputWire(i) == w) {
@@ -120,15 +104,13 @@ public class WiringState implements InteractionState {
 
     ctx.saveHistory();
 
-    // Insert a waypoint at the T-junction point
+    // Insert waypoint
     int idx = ctx.getHitTester().getWaypointInsertionIndex(seg, pt);
     seg.connection().waypoints.add(idx, new Point(pt));
 
-    // Create the new connection
     boolean ok = ctx.getCircuit().addConnection(source, srcIdx, ctx.connectionStartPin.component(),
         ctx.connectionStartPin.index());
 
-    // If successful, copy the path from source up to the T-junction
     if (ok) {
       for (Wire.PortConnection pc : w.getDestinations()) {
         if (pc.component == ctx.connectionStartPin.component() && pc.inputIndex == ctx.connectionStartPin.index()) {
@@ -140,9 +122,26 @@ public class WiringState implements InteractionState {
     }
   }
 
+  private void connectMerge(WireSegment seg) {
+    // Logic: Output Pin -> Existing Wire
+    Wire w = seg.wire();
+    if (w.getDestinations().isEmpty())
+      return;
+
+    ctx.saveHistory();
+
+    Wire.PortConnection target = w.getDestinations().get(0);
+
+    ctx.getCircuit().addConnection(
+        ctx.connectionStartPin.component(),
+        ctx.connectionStartPin.index(),
+        target.component,
+        target.inputIndex);
+  }
+
   private void finish() {
     ctx.connectionStartPin = null;
-    ctx.setPreventNextClick(true); // Prevent accidental interactions (like toggling switches) immediately after
+    ctx.setPreventNextClick(true);
     ctx.setState(new IdleState(ctx));
   }
 

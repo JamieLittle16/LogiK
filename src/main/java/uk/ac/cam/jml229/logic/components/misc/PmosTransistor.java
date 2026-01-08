@@ -1,25 +1,28 @@
 package uk.ac.cam.jml229.logic.components.misc;
 
 import uk.ac.cam.jml229.logic.components.Component;
+import uk.ac.cam.jml229.logic.core.Wire;
 
 public class PmosTransistor extends Component {
 
   public PmosTransistor(String name) {
     super(name);
-    // Input 0: Gate (Control)
-    // Input 1: Source (Input Signal)
-    setInputCount(2);
+    setInputCount(2); // 0: Gate, 1: Source
   }
 
   @Override
   public void update() {
     boolean gate = getInput(0);
     boolean source = getInput(1);
+    Wire w = getOutputWire();
 
-    // PMOS Conducts (Connects Source -> Drain) when Gate is LOW
-    if (!gate) {
-      if (getOutputWire() != null) {
-        getOutputWire().setSignal(source);
+    if (w != null) {
+      if (!gate) {
+        // ON (Active Low): Drive
+        w.setDrive(this, source ? Wire.State.HIGH : Wire.State.LOW);
+      } else {
+        // OFF: Float
+        w.setDrive(this, Wire.State.FLOATING);
       }
     }
   }

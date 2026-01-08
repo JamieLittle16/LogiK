@@ -1,6 +1,7 @@
 package uk.ac.cam.jml229.logic.core;
 
 import java.util.ArrayList;
+import java.util.Set;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,8 +77,7 @@ public class Wire {
 
     State newState;
     if (hasHigh && hasLow) {
-      // Short circuit! In simulation, we often default to Low or Undefined.
-      // We'll treat it as LOW for safety (or could be a new ERROR state).
+      // We'll treat it as LOW for safety (or could be a ERROR state).
       newState = State.LOW;
     } else if (hasHigh) {
       newState = State.HIGH;
@@ -128,6 +128,19 @@ public class Wire {
 
   public Component getSource() {
     return source;
+  }
+
+  public void removeSource(Component c) {
+    drivers.remove(c);
+    // If the primary source is removed, clear the reference
+    if (source == c) {
+      source = null;
+    }
+    recalculate();
+  }
+
+  public Set<Component> getSources() {
+    return drivers.keySet();
   }
 
   // Allow adding extra drivers (for CMOS merges)

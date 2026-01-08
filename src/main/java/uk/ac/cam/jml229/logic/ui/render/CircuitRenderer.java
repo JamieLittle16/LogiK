@@ -65,7 +65,6 @@ public class CircuitRenderer {
     if (ghostComponent != null) {
       Composite originalComposite = g2.getComposite();
       g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
-      // Delegate drawing
       componentPainter.drawComponent(g2, ghostComponent, false, false);
       componentPainter.drawStubs(g2, ghostComponent);
       g2.setComposite(originalComposite);
@@ -102,35 +101,43 @@ public class CircuitRenderer {
       WireSegment selectedWire, WireSegment hoveredWire,
       WaypointRef selectedWaypoint, WaypointRef hoveredWaypoint) {
     g2.setStroke(new BasicStroke(3, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
     for (Wire w : wires) {
-      Component source = w.getSource();
-      if (source == null)
-        continue;
-      int sourceIndex = 0;
-      for (int i = 0; i < source.getOutputCount(); i++) {
-        if (source.getOutputWire(i) == w) {
-          sourceIndex = i;
-          break;
+      // FIX: Iterate ALL sources, not just the primary one.
+      // This ensures both transistors in a CMOS pair get drawn connections.
+      for (Component source : w.getSources()) {
+
+        // Find which output pin of this source is driving this wire
+        int sourceIndex = -1;
+        for (int i = 0; i < source.getOutputCount(); i++) {
+          if (source.getOutputWire(i) == w) {
+            sourceIndex = i;
+            break;
+          }
         }
-      }
-      Point p1 = componentPainter.getPinLocation(source, false, sourceIndex);
+        if (sourceIndex == -1)
+          continue;
 
-      for (Wire.PortConnection pc : w.getDestinations()) {
-        Component dest = pc.component;
-        Point p2 = componentPainter.getPinLocation(dest, true, pc.inputIndex);
+        Point p1 = componentPainter.getPinLocation(source, false, sourceIndex);
 
-        boolean isWireSelected = (selectedWire != null && selectedWire.wire() == w && selectedWire.connection() == pc);
-        boolean isWireHovered = (hoveredWire != null && hoveredWire.wire() == w && hoveredWire.connection() == pc);
+        for (Wire.PortConnection pc : w.getDestinations()) {
+          Component dest = pc.component;
+          Point p2 = componentPainter.getPinLocation(dest, true, pc.inputIndex);
 
-        Shape path = wirePainter.createWireShape(p1, p2, pc.waypoints);
-        wirePainter.drawWire(g2, path, w.getSignal(), isWireSelected, isWireHovered);
+          boolean isWireSelected = (selectedWire != null && selectedWire.wire() == w
+              && selectedWire.connection() == pc);
+          boolean isWireHovered = (hoveredWire != null && hoveredWire.wire() == w && hoveredWire.connection() == pc);
 
-        if (isWireSelected || isWireHovered || !pc.waypoints.isEmpty()) {
-          for (Point pt : pc.waypoints) {
-            boolean isPtSelected = (selectedWaypoint != null && selectedWaypoint.point() == pt);
-            boolean isPtHovered = (hoveredWaypoint != null && hoveredWaypoint.point() == pt);
-            if (isPtSelected || isPtHovered || isWireSelected) {
-              wirePainter.drawHandle(g2, pt, isPtSelected, isPtHovered);
+          Shape path = wirePainter.createWireShape(p1, p2, pc.waypoints);
+          wirePainter.drawWire(g2, path, w.getSignal(), isWireSelected, isWireHovered);
+
+          if (isWireSelected || isWireHovered || !pc.waypoints.isEmpty()) {
+            for (Point pt : pc.waypoints) {
+              boolean isPtSelected = (selectedWaypoint != null && selectedWaypoint.point() == pt);
+              boolean isPtHovered = (hoveredWaypoint != null && hoveredWaypoint.point() == pt);
+              if (isPtSelected || isPtHovered || isWireSelected) {
+                wirePainter.drawHandle(g2, pt, isPtSelected, isPtHovered);
+              }
             }
           }
         }
@@ -143,11 +150,9 @@ public class CircuitRenderer {
     for (Component c : components) {
       boolean isSelected = selectedComponents.contains(c);
 
-      // Delegation
       componentPainter.drawStubs(g2, c);
       componentPainter.drawComponent(g2, c, isSelected, true);
 
-      // Draw Pins logic
       if (!(c instanceof OutputProbe)) {
         int outCount = c.getOutputCount();
         for (int i = 0; i < outCount; i++) {
@@ -179,7 +184,6 @@ public class CircuitRenderer {
     }
   }
 
-  // --- Proxies ---
   public Shape createWireShape(Point start, Point end, List<Point> waypoints) {
     return wirePainter.createWireShape(start, end, waypoints);
   }

@@ -1,28 +1,29 @@
 package uk.ac.cam.jml229.logic.components.misc;
 
 import uk.ac.cam.jml229.logic.components.Component;
+import uk.ac.cam.jml229.logic.core.Wire;
 
 public class NmosTransistor extends Component {
 
   public NmosTransistor(String name) {
     super(name);
-    // Input 0: Gate (Control)
-    // Input 1: Source (Input Signal)
-    setInputCount(2);
+    setInputCount(2); // 0: Gate, 1: Source
   }
 
   @Override
   public void update() {
     boolean gate = getInput(0);
     boolean source = getInput(1);
+    Wire w = getOutputWire();
 
-    // NMOS Conducts (Connects Source -> Drain) when Gate is HIGH
-    if (gate) {
-      if (getOutputWire() != null) {
-        getOutputWire().setSignal(source);
+    if (w != null) {
+      if (gate) {
+        // ON: Drive the wire with our source value
+        w.setDrive(this, source ? Wire.State.HIGH : Wire.State.LOW);
+      } else {
+        // OFF: Float
+        w.setDrive(this, Wire.State.FLOATING);
       }
     }
-    // If Gate is LOW, it effectively "floats" (does nothing),
-    // allowing other connected components (like a PMOS) to drive the wire.
   }
 }
