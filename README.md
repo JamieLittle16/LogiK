@@ -19,6 +19,12 @@ Design, simulate, and package custom Integrated Circuits with ease.
   <img src="https://img.shields.io/github/stars/JamieLittle16/LogiK?style=social" alt="Stars">
 </div>
 
+<br/>
+
+<div align="center">
+  <img src="docs/screenshot.png" alt="LogiK Interface" width="800">
+</div>
+
 <br />
 
 <div align="center">
