@@ -39,7 +39,8 @@ jobs:
 
     - name: Create Linux App Image using jpackage
       run: |
-        jpackage --type app-image --dest build/installer --input build/libs --name "Logik Simulator" --main-class uk.ac.cam.jml229.logic.app.GuiMain --main-jar LogiK.jar
+        JAR_FILE=$(basename $(ls build/libs/*.jar | head -n 1))
+        jpackage --type app-image --dest build/installer --input build/libs --name "Logik Simulator" --main-class uk.ac.cam.jml229.logic.app.GuiMain --main-jar "$JAR_FILE"
         mv "build/installer/Logik Simulator" "build/installer/logik"
         cd build/installer && tar -czf logik-linux.tar.gz logik
         
