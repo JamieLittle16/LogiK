@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (os === 'Windows') {
             heroText.textContent = 'Download for Windows';
-            heroBtn.href = 'https://github.com/JamieLittle16/LogiK/releases/latest/download/LogiK.msi';
+            // href updated via fetch below
         } else if (os === 'Linux') {
             heroText.textContent = 'Copy Linux Command';
             heroBtn.href = 'javascript:void(0)';
@@ -81,7 +81,33 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } else if (os === 'MacOS') {
             heroText.textContent = 'Download for macOS';
-            heroBtn.href = 'https://github.com/JamieLittle16/LogiK/releases/latest/download/LogiK.jar';
+            // href updated via fetch below
         }
+
+        // Dynamically fetch actual asset URLs from GitHub Releases
+        fetch('https://api.github.com/repos/JamieLittle16/LogiK/releases/latest')
+            .then(response => response.json())
+            .then(data => {
+                if (!data.assets) return;
+                
+                let jarUrl = 'https://github.com/JamieLittle16/LogiK/releases/latest';
+                let msiUrl = 'https://github.com/JamieLittle16/LogiK/releases/latest';
+                
+                data.assets.forEach(asset => {
+                    if (asset.name.endsWith('.jar')) jarUrl = asset.browser_download_url;
+                    if (asset.name.endsWith('.msi')) msiUrl = asset.browser_download_url;
+                });
+
+                // Update Hero Button
+                if (os === 'Windows') heroBtn.href = msiUrl;
+                if (os === 'MacOS') heroBtn.href = jarUrl;
+
+                // Update Bottom Grid Buttons
+                const winBtn = document.querySelector('.download-btn.windows');
+                const uniBtn = document.querySelector('.download-btn.universal');
+                if (winBtn) winBtn.href = msiUrl;
+                if (uniBtn) uniBtn.href = jarUrl;
+            })
+            .catch(err => console.error('Failed to fetch release assets:', err));
     }
 });
