@@ -47,8 +47,6 @@ public class ComponentPainter {
       case "LIGHT" -> drawLight(g2, (OutputProbe) c, x, y, sel);
       case "SEVEN_SEG" -> drawSevenSegment(g2, (SevenSegmentDisplay) c, x, y, sel);
       case "HEX" -> drawHexDisplay(g2, (HexDisplay) c, x, y, sel);
-      case "ACTIVE_HIGH" -> drawActiveHigh(g2, c, x, y, sel);
-      case "ACTIVE_LOW" -> drawActiveLow(g2, c, x, y, sel);
       case "CLOCK" -> drawClock(g2, (Clock) c, x, y, sel);
       case "D_FF" -> drawDFlipFlop(g2, (DFlipFlop) c, x, y, sel);
       case "JK_FF" -> drawJKFlipFlop(g2, (JKFlipFlop) c, x, y, sel);
@@ -67,7 +65,7 @@ public class ComponentPainter {
 
   private boolean shouldDrawLabel(String id) {
     return switch (id) {
-      case "CUSTOM", "D_FF", "JK_FF", "T_FF", "SEVEN_SEG", "HEX", "LABEL", "ACTIVE_HIGH", "ACTIVE_LOW" -> false;
+      case "CUSTOM", "D_FF", "JK_FF", "T_FF", "SEVEN_SEG", "HEX", "LABEL" -> false;
       default -> true;
     };
   }
@@ -127,7 +125,7 @@ public class ComponentPainter {
     g2.fillOval(p.x - PIN_SIZE / 2, p.y - PIN_SIZE / 2, PIN_SIZE, PIN_SIZE);
   }
 
-  // --- Layout Helpers ---
+  // --- Layout Helpers (unchanged) ---
   public Point getPinLocation(Component c, boolean isInput, int index) {
     Dimension dim = getComponentSize(c);
     int w = dim.width;
@@ -139,10 +137,6 @@ public class ComponentPainter {
       dx = w + 10;
       if (c instanceof DFlipFlop || c instanceof JKFlipFlop || c instanceof TFlipFlop)
         dx = 50;
-      if (c instanceof ActiveHigh || c instanceof ActiveLow) {
-        dx = w + 10;
-      }
-
       dy = (outCount <= 1) ? h / 2 : 10 + (index * 20);
     } else {
       int inCount = getInputCount(c);
@@ -165,7 +159,7 @@ public class ComponentPainter {
   }
 
   public int getInputCount(Component c) {
-    if (c instanceof Switch || c instanceof Clock || c instanceof ActiveHigh || c instanceof ActiveLow)
+    if (c instanceof Switch || c instanceof Clock)
       return 0;
     if (c instanceof UnaryGate || c instanceof OutputProbe)
       return 1;
@@ -175,11 +169,6 @@ public class ComponentPainter {
   public Dimension getComponentSize(Component c) {
     int w = 50;
     int h = 40;
-
-    if (c instanceof ActiveHigh || c instanceof ActiveLow) {
-      return new Dimension(30, 30);
-    }
-
     if (c instanceof DFlipFlop || c instanceof TFlipFlop) {
       w = 40;
       h = 40;
@@ -340,7 +329,7 @@ public class ComponentPainter {
       g2.drawOval(x, y, 40, 40);
     }
     boolean on = p.getState();
-    Color core = on ? Theme.LED_ON : Theme.LED_OFF;
+    Color core = on ? Theme.LED_ON : Theme.LED_OFF; // Theme dependent
 
     if (on) {
       float[] dist = { 0.0f, 0.7f, 1.0f };
@@ -363,63 +352,7 @@ public class ComponentPainter {
     g2.fillOval(x + 10, y + 8, 12, 8);
   }
 
-  private void drawActiveHigh(Graphics2D g2, Component c, int x, int y, boolean sel) {
-    Dimension d = getComponentSize(c);
-    if (sel) {
-      g2.setColor(Theme.SELECTION_BORDER);
-      g2.setStroke(new BasicStroke(5));
-      g2.drawRoundRect(x, y, d.width, d.height, 8, 8);
-    }
-    g2.setColor(new Color(Theme.WIRE_ON.getRed(), Theme.WIRE_ON.getGreen(), Theme.WIRE_ON.getBlue(), 40));
-    g2.fillRoundRect(x, y, d.width, d.height, 8, 8);
-    g2.setColor(Theme.WIRE_ON);
-    g2.setStroke(new BasicStroke(2));
-    g2.drawRoundRect(x, y, d.width, d.height, 8, 8);
-
-    // Draw Text with Counter-Rotation (Always Upright)
-    drawUprightText(g2, "1", x, y, d.width, d.height, c.getRotation());
-  }
-
-  private void drawActiveLow(Graphics2D g2, Component c, int x, int y, boolean sel) {
-    Dimension d = getComponentSize(c);
-    if (sel) {
-      g2.setColor(Theme.SELECTION_BORDER);
-      g2.setStroke(new BasicStroke(5));
-      g2.drawRoundRect(x, y, d.width, d.height, 8, 8);
-    }
-    g2.setColor(new Color(Theme.WIRE_OFF.getRed(), Theme.WIRE_OFF.getGreen(), Theme.WIRE_OFF.getBlue(), 40));
-    g2.fillRoundRect(x, y, d.width, d.height, 8, 8);
-    g2.setColor(Theme.WIRE_OFF);
-    g2.setStroke(new BasicStroke(2));
-    g2.drawRoundRect(x, y, d.width, d.height, 8, 8);
-
-    // Draw Text with Counter-Rotation (Always Upright)
-    drawUprightText(g2, "0", x, y, d.width, d.height, c.getRotation());
-  }
-
-  private void drawUprightText(Graphics2D g2, String text, int x, int y, int w, int h, int rotation) {
-    AffineTransform saved = g2.getTransform();
-
-    // Center of the component
-    int cx = x + w / 2;
-    int cy = y + h / 2;
-
-    // Rotate BACK by the component's rotation so text appears upright relative to
-    // screen
-    g2.rotate(-Math.toRadians(rotation * 90), cx, cy);
-
-    g2.setFont(new Font("SansSerif", Font.BOLD, 18));
-    FontMetrics fm = g2.getFontMetrics();
-
-    int tx = cx - fm.stringWidth(text) / 2;
-    int ty = cy - fm.getHeight() / 2 + fm.getAscent();
-
-    g2.drawString(text, tx, ty);
-
-    g2.setTransform(saved);
-  }
-
-  // --- Flip Flops ---
+  // --- Flip Flops (unchanged) ---
   private void drawFlipFlopBase(Graphics2D g2, Component c, int x, int y, int w, int h, boolean sel) {
     if (sel) {
       g2.setColor(Theme.SELECTION_BORDER);
@@ -476,22 +409,22 @@ public class ComponentPainter {
       g2.setStroke(new BasicStroke(5));
       g2.drawRect(x, y, w, h);
     }
-    g2.setColor(Theme.DISPLAY_HOUSING);
+    g2.setColor(Theme.DISPLAY_HOUSING); // Theme
     g2.fillRect(x, y, w, h);
-    g2.setColor(Theme.DISPLAY_BORDER);
+    g2.setColor(Theme.DISPLAY_BORDER); // Theme
     g2.setStroke(new BasicStroke(2));
     g2.drawRect(x, y, w, h);
     int dispW = 50;
     int dispH = 80;
     int dispX = x + (w - dispW) / 2;
     int dispY = y + (h - dispH) / 2;
-    g2.setColor(Theme.DISPLAY_SCREEN);
+    g2.setColor(Theme.DISPLAY_SCREEN); // Theme
     g2.fillRect(dispX, dispY, dispW, dispH);
     int[][] segs = { { 10, 10, 30, 5 }, { 40, 15, 5, 25 }, { 40, 45, 5, 25 }, { 10, 70, 30, 5 }, { 5, 45, 5, 25 },
         { 5, 15, 5, 25 }, { 10, 40, 30, 5 } };
     for (int i = 0; i < 7; i++) {
       boolean on = check.isOn(i);
-      g2.setColor(on ? Theme.SEGMENT_ON : Theme.SEGMENT_OFF);
+      g2.setColor(on ? Theme.SEGMENT_ON : Theme.SEGMENT_OFF); // Theme
       g2.fillRect(dispX + segs[i][0], dispY + segs[i][1], segs[i][2], segs[i][3]);
     }
     boolean dp = check.isOn(7);
@@ -528,7 +461,7 @@ public class ComponentPainter {
       g2.setStroke(new BasicStroke(5));
       g2.drawOval(x, y, 10, 10);
     }
-    g2.setColor(Theme.GATE_BUBBLE_FILL);
+    g2.setColor(Theme.GATE_BUBBLE_FILL); // Theme dependent
     g2.fillOval(x, y, 10, 10);
     g2.setColor(Theme.COMP_BORDER);
     g2.setStroke(new BasicStroke(2));

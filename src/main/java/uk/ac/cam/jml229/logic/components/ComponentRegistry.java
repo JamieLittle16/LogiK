@@ -20,8 +20,6 @@ public enum ComponentRegistry {
   LIGHT("LIGHT", "Light", "IO / Probes", () -> new OutputProbe("Out")),
   SEVEN_SEG("SEVEN_SEG", "7Seg", "IO / Probes", () -> new SevenSegmentDisplay("7Seg")),
   HEX("HEX", "Hex", "IO / Probes", () -> new HexDisplay("Hex")),
-  ACTIVE_HIGH("ACTIVE_HIGH", "Active High", "IO / Probes", () -> new ActiveHigh("1")),
-  ACTIVE_LOW("ACTIVE_LOW", "Active Low", "IO / Probes", () -> new ActiveLow("0")),
 
   // --- Basic Gates ---
   AND("AND", "AND", "Basic Gates", () -> new AndGate("AND")),
