@@ -25,6 +25,7 @@ java {
 }
 
 jar {
+    archiveFileName = 'LogiK.jar'
     manifest {
         attributes(
             'Main-Class': 'uk.ac.cam.jml229.logic.app.GuiMain' 
