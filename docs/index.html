@@ -42,11 +42,11 @@
             </div>
             <div class="nav-links">
                 <a href="#features">Features</a>
-                <a href="https://github.com/JamieLittle16/LogiK" target="_blank" class="btn btn-secondary" style="border-color: rgba(255, 204, 0, 0.5); color: #ffcc00;">
+                <a href="https://github.com/JamieLittle16/LogiK" target="_blank" class="btn btn-secondary nav-btn" style="border-color: rgba(255, 204, 0, 0.5); color: #ffcc00;">
                     <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                     Star on GitHub
                 </a>
-                <a href="#download" class="btn btn-primary nav-cta">Download</a>
+                <a href="#download" class="btn btn-primary nav-btn nav-cta">Download</a>
             </div>
         </div>
     </nav>
@@ -162,17 +162,17 @@
                         </div>
                     </a>
                     
-                    <a href="https://github.com/JamieLittle16/LogiK/releases" target="_blank" class="download-btn linux">
+                    <a href="javascript:void(0)" class="download-btn linux" onclick="navigator.clipboard.writeText('curl -sL https://raw.githubusercontent.com/JamieLittle16/LogiK/main/src/main/install.sh | bash'); const text = this.querySelector('.dl-format'); const oldText = text.innerText; text.innerText = 'Copied to clipboard!'; setTimeout(() => text.innerText = oldText, 2000);">
                         <div class="dl-icon">
                             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
                         </div>
                         <div class="dl-text">
                             <span class="dl-os">Linux</span>
-                            <span class="dl-format">Install Script</span>
+                            <span class="dl-format">Copy Install Script</span>
                         </div>
                     </a>
                     
-                    <a href="https://github.com/JamieLittle16/LogiK/releases" target="_blank" class="download-btn universal">
+                    <a href="https://github.com/JamieLittle16/LogiK/releases/latest/download/LogiK.jar" target="_blank" class="download-btn universal">
                         <div class="dl-icon">
                             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="14.31" y1="8" x2="20.05" y2="17.94"></line><line x1="9.69" y1="8" x2="21.17" y2="8"></line><line x1="7.38" y1="12" x2="13.12" y2="2.06"></line><line x1="9.69" y1="16" x2="3.95" y2="6.06"></line><line x1="14.31" y1="16" x2="2.83" y2="16"></line><line x1="16.62" y1="12" x2="10.88" y2="21.94"></line></svg>
                         </div>
@@ -191,6 +191,10 @@
             <div class="footer-brand">
                 <img src="logo.png" alt="LogiK" width="32" height="32">
                 <span>LogiK Simulator</span>
+            </div>
+            <div class="footer-stats" style="display: flex; gap: 10px; align-items: center;">
+                <img src="https://img.shields.io/github/downloads/JamieLittle16/LogiK/total?style=flat-square&color=00ff99&logo=github" alt="Total Downloads">
+                <a href="https://github.com/JamieLittle16/LogiK"><img src="https://img.shields.io/github/stars/JamieLittle16/LogiK?style=flat-square&color=ffcc00&logo=github" alt="GitHub Stars"></a>
             </div>
             <p>Created by Jamie Little &bull; Released under GPLv3</p>
         </div>

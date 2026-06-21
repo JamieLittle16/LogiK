@@ -71,8 +71,14 @@ document.addEventListener('DOMContentLoaded', () => {
             heroText.textContent = 'Download for Windows';
             heroBtn.href = 'https://github.com/JamieLittle16/LogiK/releases/latest/download/LogiK.msi';
         } else if (os === 'Linux') {
-            heroText.textContent = 'Download for Linux';
-            heroBtn.href = '#download'; // Scroll to the linux curl command
+            heroText.textContent = 'Copy Linux Command';
+            heroBtn.href = 'javascript:void(0)';
+            heroBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigator.clipboard.writeText('curl -sL https://raw.githubusercontent.com/JamieLittle16/LogiK/main/src/main/install.sh | bash');
+                heroText.textContent = 'Copied to Clipboard!';
+                setTimeout(() => heroText.textContent = 'Copy Linux Command', 2000);
+            });
         } else if (os === 'MacOS') {
             heroText.textContent = 'Download for macOS';
             heroBtn.href = 'https://github.com/JamieLittle16/LogiK/releases/latest/download/LogiK.jar';
