@@ -69,14 +69,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (os === 'Windows') {
             heroText.textContent = 'Download for Windows';
-            // In a real app we'd link directly to the latest .msi release here
-            heroBtn.href = 'https://github.com/JamieLittle16/LogiK/releases';
+            heroBtn.href = 'https://github.com/JamieLittle16/LogiK/releases/latest/download/LogiK.msi';
         } else if (os === 'Linux') {
             heroText.textContent = 'Download for Linux';
             heroBtn.href = '#download'; // Scroll to the linux curl command
         } else if (os === 'MacOS') {
             heroText.textContent = 'Download for macOS';
-            heroBtn.href = 'https://github.com/JamieLittle16/LogiK/releases';
+            heroBtn.href = 'https://github.com/JamieLittle16/LogiK/releases/latest/download/LogiK.jar';
         }
     }
 });

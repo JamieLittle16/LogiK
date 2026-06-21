@@ -375,6 +375,30 @@ body {
     font-size: 0.95rem;
 }
 
+/* Gallery Section */
+.screenshots {
+    padding: 2rem 2rem 6rem;
+}
+
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.gallery-img {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid var(--card-border);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    transition: transform 0.3s ease;
+}
+
+.gallery-img:hover {
+    transform: scale(1.02);
+}
+
 /* Download Section */
 .download-section {
     padding: 4rem 2rem 8rem;
