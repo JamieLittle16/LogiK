@@ -69,7 +69,7 @@ jobs:
       
     - name: Create MSI using jpackage
       run: |
-        magick icon.png icon.ico
+        magick icon.png -resize 256x256 icon.ico
         $JAR_FILE = Get-ChildItem -Path build\libs\*.jar | Select-Object -First 1 -ExpandProperty Name
         jpackage --type msi --dest build\installer --input build\libs --name LogiK --main-class uk.ac.cam.jml229.logic.app.GuiMain --main-jar $JAR_FILE --win-shortcut --win-dir-chooser --icon icon.ico
         
