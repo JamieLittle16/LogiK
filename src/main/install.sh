@@ -5,7 +5,7 @@ INSTALL_DIR="$HOME/.local/share/logik"
 BIN_DIR="$HOME/.local/bin"
 DESKTOP_DIR="$HOME/.local/share/applications"
 # REPLACE THIS URL WITH YOUR REAL GITHUB RELEASE LINK:
-DOWNLOAD_URL="https://github.com/JamieLittle16/Logic-Simulator/releases/latest/download/logik-linux.tar.gz"
+DOWNLOAD_URL="https://github.com/JamieLittle16/LogiK/releases/latest/download/logik-linux.tar.gz"
 # ---------------------
 
 echo "🚀 Installing Logik Simulator..."

@@ -37,6 +37,18 @@ jobs:
         name: LogiK-jar
         path: build/libs/*.jar
 
+    - name: Create Linux App Image using jpackage
+      run: |
+        jpackage --type app-image --dest build/installer --input build/libs --name "Logik Simulator" --main-class uk.ac.cam.jml229.logic.app.GuiMain --main-jar LogiK.jar
+        mv "build/installer/Logik Simulator" "build/installer/logik"
+        cd build/installer && tar -czf logik-linux.tar.gz logik
+        
+    - name: Upload Linux Tarball Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: LogiK-linux-tar
+        path: build/installer/logik-linux.tar.gz
+
   build-windows:
     runs-on: windows-latest
     
@@ -82,12 +94,19 @@ jobs:
         name: LogiK-msi
         path: build/libs/
         
+    - name: Download Linux Tarball artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: LogiK-linux-tar
+        path: build/libs/
+        
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
         files: |
           build/libs/*.jar
           build/libs/*.msi
+          build/libs/logik-linux.tar.gz
         draft: false
         prerelease: false
       env:
