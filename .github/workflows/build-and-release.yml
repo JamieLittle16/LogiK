@@ -40,8 +40,9 @@ jobs:
     - name: Create Linux App Image using jpackage
       run: |
         JAR_FILE=$(basename $(ls build/libs/*.jar | head -n 1))
-        jpackage --type app-image --dest build/installer --input build/libs --name "Logik Simulator" --main-class uk.ac.cam.jml229.logic.app.GuiMain --main-jar "$JAR_FILE"
+        jpackage --type app-image --dest build/installer --input build/libs --name "Logik Simulator" --main-class uk.ac.cam.jml229.logic.app.GuiMain --main-jar "$JAR_FILE" --icon icon.png
         mv "build/installer/Logik Simulator" "build/installer/logik"
+        cp icon.png build/installer/logik/icon.png
         cd build/installer && tar -czf logik-linux.tar.gz logik
         
     - name: Upload Linux Tarball Artifact
@@ -68,8 +69,9 @@ jobs:
       
     - name: Create MSI using jpackage
       run: |
+        magick icon.png icon.ico
         $JAR_FILE = Get-ChildItem -Path build\libs\*.jar | Select-Object -First 1 -ExpandProperty Name
-        jpackage --type msi --dest build\installer --input build\libs --name LogiK --main-class uk.ac.cam.jml229.logic.app.GuiMain --main-jar $JAR_FILE --win-shortcut --win-dir-chooser
+        jpackage --type msi --dest build\installer --input build\libs --name LogiK --main-class uk.ac.cam.jml229.logic.app.GuiMain --main-jar $JAR_FILE --win-shortcut --win-dir-chooser --icon icon.ico
         
     - name: Upload MSI Artifact
       uses: actions/upload-artifact@v4
