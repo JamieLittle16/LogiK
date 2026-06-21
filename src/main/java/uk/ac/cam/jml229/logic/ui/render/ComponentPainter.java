@@ -61,8 +61,6 @@ public class ComponentPainter {
       case "XOR" -> drawXorGate(g2, c, x, y, sel);
       case "BUFFER" -> drawBufferGate(g2, c, x, y, sel);
       case "LABEL" -> drawTextLabel(g2, (TextLabel) c, x, y, sel);
-      case "NMOS" -> drawTransistor(g2, c, x, y, sel, false); // false = no bubble (NMOS)
-      case "PMOS" -> drawTransistor(g2, c, x, y, sel, true); // true = bubble (PMOS)
       default -> drawGenericBox(g2, c, x, y, sel);
     }
   }
@@ -668,69 +666,5 @@ public class ComponentPainter {
     int textY = y + ((h - fm.getHeight()) / 2) + fm.getAscent();
     g2.setColor(Theme.TEXT_COLOR);
     g2.drawString(text, textX, textY);
-  }
-
-  private void drawTransistor(Graphics2D g2, Component c, int x, int y, boolean sel, boolean isPmos) {
-    Dimension d = getComponentSize(c); // Standard 50x40 works fine
-
-    // 1. Draw Box Body
-    if (sel) {
-      g2.setColor(Theme.SELECTION_BORDER);
-      g2.setStroke(new BasicStroke(5));
-      g2.drawRect(x, y, d.width, d.height);
-    }
-    g2.setColor(Theme.GENERIC_BOX_FILL);
-    g2.fillRect(x, y, d.width, d.height);
-    g2.setColor(Theme.COMP_BORDER);
-    g2.setStroke(new BasicStroke(2));
-    g2.drawRect(x, y, d.width, d.height);
-
-    // 2. Draw Schematic Symbol Logic
-    // Inputs are on the left (x). Output on right (x+width).
-    // In logic sims, usually inputs are evenly spaced.
-    // Input 0 (Gate) -> y+10
-    // Input 1 (Source) -> y+30
-
-    int gateY = y + 10;
-    int sourceY = y + 30;
-    int outY = y + 20; // Center
-
-    // Draw Gate connection (Input 0)
-    g2.setColor(Theme.COMP_BORDER);
-    g2.setStroke(new BasicStroke(2));
-
-    // Line from Pin 0 to Gate Bar
-    int barX = x + 15;
-    g2.drawLine(x, gateY, barX, gateY);
-
-    // Vertical Gate Bar
-    g2.drawLine(barX, gateY - 5, barX, gateY + 25);
-
-    // Channel Bar (Parallel to gate)
-    int channelX = barX + 6;
-    g2.drawLine(channelX, gateY - 5, channelX, gateY + 25);
-
-    // Draw Source connection (Input 1) to Channel
-    // We route it visually to the "Source" side of the FET (Bottom usually in
-    // schematic, but here Bottom Input)
-    g2.drawLine(x, sourceY, channelX, sourceY); // Connect input 1 directly to channel?
-    // Actually, traditionally Gate is the "Control".
-    // Let's visualises: Input 0 (Top) is Gate. Input 1 (Bot) is Source.
-
-    if (isPmos) {
-      // Draw Bubble on Gate
-      g2.setColor(Theme.GENERIC_BOX_FILL);
-      g2.fillOval(barX - 8, gateY - 4, 8, 8);
-      g2.setColor(Theme.COMP_BORDER);
-      g2.drawOval(barX - 8, gateY - 4, 8, 8);
-    }
-
-    // Connect Channel to Output
-    g2.drawLine(channelX, outY, x + d.width, outY);
-
-    // Draw Label
-    g2.setColor(Theme.TEXT_COLOR);
-    g2.setFont(new Font("SansSerif", Font.BOLD, 10));
-    g2.drawString(isPmos ? "P-MOS" : "N-MOS", x + 24, y + 35);
   }
 }
