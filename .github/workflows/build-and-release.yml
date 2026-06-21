@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  build-universal:
     runs-on: ubuntu-latest
     
     steps:
@@ -21,7 +21,7 @@ jobs:
     - name: Set up JDK
       uses: actions/setup-java@v4
       with:
-        java-version: '21' # Using 21 as stable LTS, Gradle toolchains will handle the rest if needed
+        java-version: '21'
         distribution: 'temurin'
         cache: gradle
         
@@ -37,16 +37,49 @@ jobs:
         name: LogiK-jar
         path: build/libs/*.jar
 
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: gradle
+        
+    - name: Build with Gradle
+      run: .\gradlew clean jar
+      
+    - name: Create MSI using jpackage
+      run: |
+        $JAR_FILE = Get-ChildItem -Path build\libs\*.jar | Select-Object -First 1 -ExpandProperty Name
+        jpackage --type msi --dest build\installer --input build\libs --name LogiK --main-class uk.ac.cam.jml229.logic.app.GuiMain --main-jar $JAR_FILE --win-shortcut --win-dir-chooser
+        
+    - name: Upload MSI Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: LogiK-msi
+        path: build\installer\*.msi
+
   release:
-    needs: build
+    needs: [build-universal, build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     
     steps:
-    - name: Download artifacts
+    - name: Download JAR artifact
       uses: actions/download-artifact@v4
       with:
         name: LogiK-jar
+        path: build/libs/
+        
+    - name: Download MSI artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: LogiK-msi
         path: build/libs/
         
     - name: Create GitHub Release
@@ -54,6 +87,7 @@ jobs:
       with:
         files: |
           build/libs/*.jar
+          build/libs/*.msi
         draft: false
         prerelease: false
       env:
