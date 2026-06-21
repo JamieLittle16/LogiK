@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.components.misc.TextLabel;
+import uk.ac.cam.jml229.logic.components.gates.LogicGate;
 import uk.ac.cam.jml229.logic.core.Circuit;
 import uk.ac.cam.jml229.logic.core.Wire;
 import uk.ac.cam.jml229.logic.ui.panels.CircuitPanel;
@@ -186,6 +187,23 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       }
     });
     menu.add(timingItem);
+
+    if (selectedComponents.size() == 1 && selectedComponents.get(0) instanceof LogicGate) {
+      LogicGate gate = (LogicGate) selectedComponents.get(0);
+      JMenuItem setInputs = new JMenuItem("Set Inputs...");
+      setInputs.addActionListener(ev -> {
+        String input = JOptionPane.showInputDialog(panel, "Number of Inputs (2-32):", String.valueOf(gate.getInputCount()));
+        if (input != null) {
+          try {
+            int n = Integer.parseInt(input);
+            saveHistory();
+            gate.resizeInputs(n);
+            panel.repaint();
+          } catch (NumberFormatException ex) {}
+        }
+      });
+      menu.add(setInputs);
+    }
 
     JMenuItem delayItem = new JMenuItem("Set Propagation Delay...");
     delayItem.addActionListener(ev -> {
